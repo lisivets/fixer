@@ -145,6 +145,16 @@ const plainM=(c,r,m)=>{const k='p'+c+'_'+r+'_'+m;return PM[k]||(PM[k]=MS({color:
 function shoeMat(col){const key='Sh'+col;if(PM[key])return PM[key];const c='#'+new THREE.Color(col).getHexString();
   const t=paintTex(64,64,(g,w,h)=>{vgrad(g,w,h,sh(c,1.2),sh(c,.6));blotch(g,w,h,'rgba(255,255,255,.08)',6,4,10);g.fillStyle='rgba(0,0,0,.4)';g.fillRect(w*.55,0,w*.3,h*.5);});
   return PM[key]=MS({map:t,roughness:.35,metalness:.1});}
+// ---- оружие в руке: 0 — пистолет, 1 — пистолет-пулемёт, 2 — гладкоствол; sc — масштаб, rz — поворот хвата ----
+function buildWeapons(hand,sc,rz){
+  const mk=(w,h,d,col,x,y,z)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),MS({color:col,roughness:.4,metalness:.5}));m.position.set(x,y,z);return m;};
+  const w0=new THREE.Group();w0.add(mk(3.2,.9,.7,0x1a1a1a,1.6,-.9,0),mk(.9,1.8,.7,0x222222,.3,-1.4,0));
+  const w1=new THREE.Group();w1.add(mk(5.5,1.2,.8,0x181818,2.4,-.9,0),mk(.8,2.4,.7,0x111111,2.2,-2.3,0),mk(1,1.8,.7,0x222222,0,-1.4,0),mk(2.2,.5,.5,0x111111,5.2,-.7,0));
+  const w2=new THREE.Group();const tb=new THREE.Mesh(new THREE.CylinderGeometry(.8,.8,7,10),MS({color:0x5a6a4a,roughness:.5}));tb.rotation.z=Math.PI/2;tb.position.set(2,-.2,0);w2.add(tb,mk(.9,1.6,.7,0x222222,1,-1.3,0));
+  const grip=new THREE.Group();grip.scale.setScalar(sc||1);grip.rotation.z=rz||0;if(rz)grip.position.set(0,-.6,0);hand.add(grip);
+  const wep={};for(const [k,w] of [[0,w0],[1,w1],[2,w2]]){w.visible=false;grip.add(w);wep[k]=w;}
+  return wep;
+}
 // ---- сборка человека ----
 function makeHuman(sp){
   const root=new THREE.Group(),g=new THREE.Group();root.add(g);
@@ -240,15 +250,8 @@ function makeHuman(sp){
     head.add(lm([R(-.35,.5,.6,.4),R(.4,1.5,1.45,.15),R(1.7,1.72,1.6)],NT,plainM(0x0a0b0a,.95)));
   }
   // оружие
-  const wep={};
-  if(sp.gun){
-    const mk=(w,h,d,col,x,y,z)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),MS({color:col,roughness:.4,metalness:.5}));m.position.set(x,y,z);return m;};
-    const w0=new THREE.Group();w0.add(mk(3.2,.9,.7,0x1a1a1a,1.6,-.9,0),mk(.9,1.8,.7,0x222222,.3,-1.4,0));
-    const w1=new THREE.Group();w1.add(mk(5.5,1.2,.8,0x181818,2.4,-.9,0),mk(.8,2.4,.7,0x111111,2.2,-2.3,0),mk(1,1.8,.7,0x222222,0,-1.4,0),mk(2.2,.5,.5,0x111111,5.2,-.7,0));
-    const w2=new THREE.Group();const tb=new THREE.Mesh(new THREE.CylinderGeometry(.8,.8,7,10),MS({color:0x5a6a4a,roughness:.5}));tb.rotation.z=Math.PI/2;tb.position.set(2,-.2,0);w2.add(tb,mk(.9,1.6,.7,0x222222,1,-1.3,0));
-    for(const [k,w] of [[0,w0],[1,w1],[2,w2]]){w.visible=false;arms[1].hand.add(w);wep[k]=w;}
-    wep[sp.gun===2?1:0].visible=true;
-  }
+  const wep=sp.gun?buildWeapons(arms[1].hand,1,0):{};
+  if(sp.gun)wep[sp.gun===2?1:0].visible=true;
   if(sp.shield){const s=new THREE.Mesh(new THREE.BoxGeometry(.5,9,5.5),MS({color:0x20303a,transparent:true,opacity:.55,roughness:.1,metalness:.3}));s.position.set(3.3,9.5,-1.2);g.add(s);}
   root.scale.set(sp.w||1,sp.h||1,sp.w||1);
   root.userData={legs,arms,head,wep,kind:sp.kind,g,skirt,ph:rnd(0,6),cs:0,hy:0,hp:0,aim:0,omon:!!sp.shield};
@@ -277,10 +280,11 @@ function updPed(m,p,L){
   const s=Math.sin(p.step*1.5+u.ph)*.85*u.cs*run;
   u.legs[0].hip.rotation.z=s;u.legs[1].hip.rotation.z=-s;
   u.legs[0].kn.rotation.z=-Math.max(0,-s)*1.0;u.legs[1].kn.rotation.z=-Math.max(0,s)*1.0;
+  const E=u.hero?-1:1; // у героя локти гнутся вперёд
   const aim=p.aim||0;u.aim+=(aim-u.aim)*.3;
-  u.arms[0].sh.rotation.z=u.kind==='omon'?.7:-s*.8*(1-u.aim*.0);u.arms[0].el.rotation.z=u.kind==='omon'?-1.1:-.15-Math.abs(s)*.4;
+  u.arms[0].sh.rotation.z=u.kind==='omon'?.7:-s*.8*(1-u.aim*.0);u.arms[0].el.rotation.z=u.kind==='omon'?-1.1:E*(-.15-Math.abs(s)*.4);
   const ra=u.arms[1];
-  ra.sh.rotation.z=s*.8*(1-u.aim)+u.aim*1.45;ra.el.rotation.z=-.15*(1-u.aim)-Math.abs(s)*.4*(1-u.aim);
+  ra.sh.rotation.z=s*.8*(1-u.aim)+u.aim*1.45;ra.el.rotation.z=E*(-.15*(1-u.aim)-Math.abs(s)*.4*(1-u.aim));
   if(u.skirt){u.skirt.rotation.z=-s*.3;}
   u.g.position.y=Math.abs(Math.sin(p.step*1.5+u.ph))*.35*u.cs;
   u.g.rotation.z=u.cs*.05*run;
@@ -290,8 +294,3 @@ function updPed(m,p,L){
   u.head.rotation.y=-u.hy;u.head.rotation.z=u.hp;
   if(p.w!==undefined&&u.wep){for(const k in u.wep)u.wep[k].visible=(+k===p.w);}
 }
-
-
-
-const playerMesh=makeHuman({kind:'pl',suit:1,coat:'#16161a',coatKind:'cloth',len:1,skL:2.7,pants:0x121216,skin:'#c8906a',eye:'#3a2a1a',hair:'#1a100c',hairStyle:'slick',hat:'none',inner:0xeae6dc,gun:1,shoe:0x0b0b0c,sqToe:1,stub:false,h:1.03,w:1.04});
-scene.add(playerMesh);
