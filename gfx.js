@@ -103,8 +103,9 @@ function resize3(){
 }
 addEventListener('resize',resize3);resize3();
 function renderFrame(t,hurt,dim){
-  skyDome.position.copy(cam3.position);
-  sunSpr.position.copy(cam3.position).addScaledVector(SUNDIR,3500);
+  const k=cam3.far*0.9/3800; // купол и солнце целиком внутри дальней плоскости
+  skyDome.position.copy(cam3.position);skyDome.scale.setScalar(k);
+  sunSpr.position.copy(cam3.position).addScaledVector(SUNDIR,3500*k);sunSpr.scale.set(1100*k,1100*k,1);
   if(composer){finalPass.uniforms.time.value=t%100;finalPass.uniforms.hurt.value=hurt||0;finalPass.uniforms.dim.value=dim||0;composer.render();}
   else gl.render(scene,cam3);
 }
