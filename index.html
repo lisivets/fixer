@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Fixer</title>
+<link href="https://fonts.googleapis.com/css2?family=Russo+One&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;height:100%;background:#0d0f0d;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+canvas{position:fixed;left:0;top:0;width:100vw;height:100vh;display:block}
+#h{pointer-events:none}
+</style>
+</head>
+<body>
+<canvas id="g"></canvas>
+<canvas id="h"></canvas>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/MaskPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script src="core.js"></script>
+<script src="touch.js"></script>
+<script src="render.js"></script>
+<script src="ents.js"></script>
+<script src="logic.js"></script>
+<script src="tex.js"></script>
+<script src="gfx.js"></script>
+<script src="world3d.js"></script>
+<script src="arch3d.js"></script>
+<script src="render3d.js"></script>
+<script src="cars3d.js"></script>
+<script src="people3d.js"></script>
+<script src="police.js"></script>
+<script src="hud.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
