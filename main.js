@@ -8,8 +8,8 @@ function resetPlayer(full){
 }
 function newGame(){
   cars.length=peds.length=bullets.length=parts.length=picks.length=0;
-  genMap();renderMap();build3D();camYaw=0;camPitch=-.32;P.money=0;P.lives=5;over=false;resetPlayer(true);
-  const c=new Car('sport',24.5*TS,21.5*TS,0);cars.push(c);
+  cam3.far=LITE?2500:3600;cam3.updateProjectionMatrix();genMap();renderMap();build3D();camYaw=0;camPitch=-.32;P.money=0;P.lives=5;over=false;resetPlayer(true);
+  const c=new Car('sport',START.x+46,START.y+4,0);cars.push(c);
   for(let i=0;i<(LITE?24:40);i++){spawnTraffic();}
   for(let i=0;i<(LITE?34:60);i++)spawnPed();
   for(let i=0;i<24;i++)spawnPick();
@@ -157,5 +157,5 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 function boot(){buildGroundTextures();newGame();last=performance.now();requestAnimationFrame(frame);}
-ctx.fillStyle='#0d0f0d';ctx.fillRect(0,0,VW,VH);txt('Строим Москву…',VW/2,VH/2,34,'#f2d03a','center');
+ctx.fillStyle='#0d0f0d';ctx.fillRect(0,0,VW,VH);txt('Строим город…',VW/2,VH/2,34,'#f2d03a','center');
 setTimeout(boot,80);

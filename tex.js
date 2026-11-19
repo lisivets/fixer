@@ -86,6 +86,21 @@ function buildGroundTextures(){
     const n=fbmp(u,v,8,4),r=sstep(.6,.85,fbmp(u+.5,v,5,3));
     const b=120+n*40;o.r=b+r*60;o.g=b-r*10;o.b=b-r*40;o.h=n*.4;o.ro=.5+r*.35;o.me=.8-r*.6;
   },2);
+  // вода
+  PBR.water=genTile(256*TQ,(u,v,o)=>{
+    const n=fbmp(u,v,6,4),m=fbmp(u+.3,v+.7,12,3),b=26+n*22;
+    o.r=b*.5;o.g=b*.82;o.b=b*1.15+16;o.h=n*.7+m*.3;o.ro=.12;o.me=.1;
+  },6);
+  // брёвна
+  PBR.wood=genTile(512*TQ,(u,v,o)=>{
+    const row=Math.floor(v*16),py=(v*16)%1,rr=Math.sin(py*Math.PI),g=fbmp(u*2,v*8+row*.3,8,3),id=((row*17)%7)/7,b=84+id*30+g*36;
+    o.r=b*1.12;o.g=b*.74;o.b=b*.46;o.h=.25+rr*.65+g*.1;o.ro=.85;o.me=0;
+  },5);
+  // профнастил
+  PBR.tin=genTile(256*TQ,(u,v,o)=>{
+    const rib=Math.sin(u*Math.PI*16),n=fbmp(u,v,8,4),r=sstep(.55,.85,fbmp(u+.4,v,5,3)),b=128+n*36+rib*14;
+    o.r=b+r*50;o.g=b-r*8+4;o.b=b-r*30+8;o.h=.5+rib*.5;o.ro=.55+r*.3;o.me=.7-r*.4;
+  },4);
 }
 // ---------- Фасады: четыре слоя рисуются одновременно ----------
 function Layers(w,h){
@@ -116,7 +131,7 @@ const FAC={};
 function facadeSet(kind){
   if(FAC[kind])return FAC[kind];
   const W=1024,L=new Layers(W,W);
-  const wallC={khrush:'#e6e0d2',panel9:'#d6d8d4',stalin:'#ebdfc4',vysotka:'#e9dfc6'}[kind];
+  const wallC={slab5:'#e6e0d2',slab9:'#d6d8d4',classic:'#ebdfc4',spire:'#e9dfc6'}[kind];
   const wall={c:wallC,h:128,r:218,m:0},lit=()=>Math.random()<.27;
   const glassS={c:'#0b1117',h:38,r:14,m:0};
   function win(x,y,w,h,frame,mull){
@@ -130,18 +145,18 @@ function facadeSet(kind){
     if(mull)L.rect(x,y+h*.34-3,w,6,{c:frame,h:184,r:140});
     L.rect(x-14,y+h+9,w+28,10,{c:'#cfc8b8',h:200,r:170}); // подоконник
   }
-  if(kind==='khrush'||kind==='panel9'){
+  if(kind==='slab5'||kind==='slab9'){
     for(let k=1;k<4;k++){L.rect(k*256-2,0,4,W,{c:'#8a8a82',h:60,r:230});L.rect(0,k*256-2,W,4,{c:'#8a8a82',h:60,r:230});}
     L.rect(0,0,4,W,{c:'#8a8a82',h:60,r:230});L.rect(0,0,W,4,{c:'#8a8a82',h:60,r:230});
     for(let b=0;b<4;b++)for(let f=0;f<4;f++){
       const x=b*256,y=f*256;
-      if(kind==='khrush'){win(x+70,y+54,116,138,'#f4f1e8',true);}
+      if(kind==='slab5'){win(x+70,y+54,116,138,'#f4f1e8',true);}
       else{
         win(x+82,y+60,92,120,'#e9eceb',true);
         if(b%2){L.rect(x+14,y+176,228,66,{c:'#46688a',h:160,r:40,m:30});L.rect(x+14,y+176,228,8,{c:'#2b3946',h:200,r:120});if(lit())L.rect(x+22,y+190,212,44,{e:'#ffcf8a'});}
       }
     }
-  }else if(kind==='stalin'){
+  }else if(kind==='classic'){
     for(let b=0;b<4;b++)for(let f=0;f<4;f++){
       const x=b*256,y=f*256;
       L.rect(x+44,y+24,168,200,{c:'#f3ead2',h:150,r:200});
@@ -149,15 +164,15 @@ function facadeSet(kind){
       win(x+82,y+66,92,134,'#fff8e8',true);
     }
     for(let f=0;f<4;f++)L.rect(0,f*256+250,W,6,{c:'#cdbf9c',h:190,r:190});
-  }else{ // vysotka
+  }else{ // spire
     for(let b=0;b<4;b++){L.rect(b*256+8,0,26,W,{c:'#f6edd2',h:200,r:200});L.rect(b*256+222,0,26,W,{c:'#f6edd2',h:200,r:200});}
     for(let b=0;b<4;b++)for(let f=0;f<4;f++)win(b*256+80,f*256+58,96,150,'#f8f0da',true);
     for(let f=0;f<4;f++)L.rect(0,f*256+240,W,12,{c:'#cdbf9c',h:190,r:190});
   }
-  return FAC[kind]=L.finish(kind==='vysotka'?.35:.7,3);
+  return FAC[kind]=L.finish(kind==='spire'?.35:.7,3);
 }
 function brickFacade(){ // стена и храм: кирпич + белокаменные арки
-  if(FAC.basil)return FAC.basil;
+  if(FAC.cathedral)return FAC.cathedral;
   const W=1024,L=new Layers(W,W);
   L.rect(0,0,W,W,{c:'#a5432a',h:130,r:215});
   for(let row=0;row<32;row++)for(let c=0;c<17;c++){
@@ -173,5 +188,5 @@ function brickFacade(){ // стена и храм: кирпич + белокам
     L.shape(g=>g.arc(x+40,y,40,Math.PI,0),{c:'#0b1117',h:40,r:20});
     if(Math.random()<.4)L.rect(x+6,y+10,68,150,{e:'#ffb85a'});
   }
-  return FAC.basil=L.finish(.6,3);
+  return FAC.cathedral=L.finish(.6,3);
 }

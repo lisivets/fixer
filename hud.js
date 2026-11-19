@@ -8,7 +8,7 @@ function drawWorld(){
   g.setTransform(SC,0,0,SC,VW/2-cam.x*SC+sx,VH/2-cam.y*SC+sy);
   const vw=VW/SC,vh=VH/SC,x0=clamp(cam.x-vw/2-10,0,WW),y0=clamp(cam.y-vh/2-10,0,WH);
   const x1=clamp(cam.x+vw/2+10,0,WW),y1=clamp(cam.y+vh/2+10,0,WH);
-  g.drawImage(MAP,x0,y0,x1-x0,y1-y0,x0,y0,x1-x0,y1-y0);
+  {const K=4/TS;g.drawImage(MAP,x0*K,y0*K,(x1-x0)*K,(y1-y0)*K,x0,y0,x1-x0,y1-y0);}
   const vis=o=>Math.abs(o.x-cam.x)<vw/2+60&&Math.abs(o.y-cam.y)<vh/2+60;
   for(const c of cars)if(c.dead&&vis(c))drawCar(c);
   for(const k of picks)if(vis(k))drawPick(k,tm);
@@ -63,7 +63,7 @@ function drawHUD(){
   if(P.car)bar(bx,22*hs+(bh+16*hs)*2,bw,bh,P.car.hp/P.car.t.hp,'#e0a030','М');
   // деньги, жизни, розыск, оружие справа
   const rx=VW-24*hs;
-  txt(Math.floor(P.money)+' ₽',rx,54*hs,46*hs,'#d8c878','right');
+  txt(Math.floor(P.money)+' $',rx,54*hs,46*hs,'#d8c878','right');
   if(P.car)txt(P.car.t.name,VW/2,VH-36*hs,26*hs,'#f2d03a','center');
   g.font=`${30*hs}px sans-serif`;g.textAlign='right';
   for(let i=0;i<5;i++){g.fillStyle=i<P.lives?'#e23030':'rgba(80,20,20,.5)';g.fillText('♥',rx-i*34*hs,92*hs);}
@@ -76,11 +76,11 @@ function drawHUD(){
   const W=WEAPONS[P.w],am=P.ammo[P.w];
   txt(W.n+(am===Infinity?'':'  '+am),rx,160*hs,20*hs,'#9fd49a','right');
   // миникарта
-  const ms=MOBILE?Math.min(VH*.3,120):170*hs,mx=MOBILE?VW/2-ms/2:20*hs,my=MOBILE?8:VH-ms-20*hs,R=520;
+  const ms=MOBILE?Math.min(VH*.3,120):170*hs,mx=MOBILE?VW/2-ms/2:20*hs,my=MOBILE?8:VH-ms-20*hs,R=1500;
   g.save();rr(mx,my,ms,ms,8);g.clip();
   g.fillStyle='#000';g.fillRect(mx,my,ms,ms);
   const sx=clamp(P.x-R/2,0,WW-R),sy=clamp(P.y-R/2,0,WH-R);
-  g.globalAlpha=.85;g.drawImage(MAP,sx,sy,R,R,mx,my,ms,ms);g.globalAlpha=1;
+  {const K=4/TS;g.globalAlpha=.85;g.drawImage(MAP,sx*K,sy*K,R*K,R*K,mx,my,ms,ms);g.globalAlpha=1;}
   const k=ms/R,M=(o)=>[mx+(o.x-sx)*k,my+(o.y-sy)*k];
   for(const c of cars){if(c.dead)continue;const [x,y]=M(c);if(x<mx||y<my||x>mx+ms||y>my+ms)continue;
     g.fillStyle=c.type==='cop'?((c.flash>>2)%2?'#ff3030':'#3060ff'):'#cfcfcf';g.fillRect(x-2,y-2,5,5);}
@@ -93,14 +93,14 @@ function drawHUD(){
 function drawOverlays(){
   if(MOBILE&&VH>VW){ctx.fillStyle='rgba(0,0,0,.9)';ctx.fillRect(0,0,VW,VH);txt('Поверните телефон горизонтально',VW/2,VH/2,Math.min(VW/14,34),'#f2d03a','center');return;}
   const cx=VW/2,cy=VH/2,hs=HS();
-  if(over){ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(0,0,VW,VH);txt('ИГРА ОКОНЧЕНА',cx,cy,80*hs,'#e23030','center');txt('Счёт: '+Math.floor(P.money)+' ₽   ·   Enter — заново',cx,cy+50*hs,26*hs,'#fff','center');return;}
+  if(over){ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(0,0,VW,VH);txt('ИГРА ОКОНЧЕНА',cx,cy,80*hs,'#e23030','center');txt('Счёт: '+Math.floor(P.money)+' $   ·   Enter — заново',cx,cy+50*hs,26*hs,'#fff','center');return;}
   if(state==='play'&&!P.car&&!P.dead&&!over){ctx.strokeStyle='rgba(255,255,255,.85)';ctx.lineWidth=2;ctx.beginPath();ctx.arc(cx,cy,7,0,7);ctx.moveTo(cx-14,cy);ctx.lineTo(cx-4,cy);ctx.moveTo(cx+4,cy);ctx.lineTo(cx+14,cy);ctx.stroke();}
   if(P.busted>0){ctx.fillStyle='rgba(10,20,60,.55)';ctx.fillRect(0,0,VW,VH);txt('ЗАДЕРЖАН',cx,cy,90*hs,'#7ab0ff','center');return;}
   if(P.dead>0){txt('ВЫ УБИТЫ',cx,cy,90*hs,'#e23030','center');return;}
   if(state==='title'){
     ctx.fillStyle='rgba(0,0,0,.62)';ctx.fillRect(0,0,VW,VH);
     txt('FIXER',cx,cy-150*hs,60*hs,'#f2d03a','center');
-    const L=MOBILE?['Левый палец — стик: ходьба и руль','Правый палец — вращать голову во все стороны · кнопка 1-е/3-е — вид','Кнопки: ОГОНЬ, ВХОД/ВЫХОД, ОРУЖИЕ, РУЧНИК, ГУДОК','','','',]:['WASD — ходьба и руль · Shift — бег','Мышь (клик захватывает курсор) — свободный поворот головы и камеры по горизонтали и вертикали','C — вид от первого лица / от третьего','Пробел / ЛКМ — огонь (в машине пробел — ручник)','F или Enter — сесть / выйти · H — сигнал','1, 2, 3 или Q / E — смена оружия','Собирай ₽, жги резину на Волге и Чайке, не попадайся милиции','','Нажми любую клавишу, чтобы начать'];
+    const L=MOBILE?['Левый палец — стик: ходьба и руль','Правый палец — вращать голову во все стороны · кнопка 1-е/3-е — вид','Кнопки: ОГОНЬ, ВХОД/ВЫХОД, ОРУЖИЕ, РУЧНИК, ГУДОК','','','',]:['WASD — ходьба и руль · Shift — бег','Мышь (клик захватывает курсор) — свободный поворот головы и камеры по горизонтали и вертикали','C — вид от первого лица / от третьего','Пробел / ЛКМ — огонь (в машине пробел — ручник)','F или Enter — сесть / выйти · H — сигнал','1, 2, 3 или Q / E — смена оружия','Собирай $, жги резину на лимузинах, не попадайся полиции','','Нажми любую клавишу, чтобы начать'];
     if(MOBILE)L.push('Коснись экрана, чтобы начать');
     const gap=Math.max(34*hs,20);L.forEach((s,i)=>txt(s,cx,cy-80*hs+i*gap,i===L.length-1?28*hs:22*hs,i===L.length-1?'#9fd49a':'#e8e8e8','center'));
   }

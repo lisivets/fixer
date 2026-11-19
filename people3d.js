@@ -1,5 +1,5 @@
 'use strict';
-// ===== Детальные люди: пешеходы, милиция, ОМОН, игрок (голова вращается свободно) =====
+// ===== Детальные люди: пешеходы, полиция, спецотряд, игрок (голова вращается свободно) =====
 const fabTex=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');const im=g.createImageData(64,64);
   for(let i=0;i<4096;i++){const v=150+((i*7919)%97)/97*105|0;im.data[i*4]=im.data[i*4+1]=im.data[i*4+2]=v;im.data[i*4+3]=255;}
   g.putImageData(im,0,0);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(6,6);return t;})();
@@ -49,7 +49,7 @@ function torsoMat(sp){
     // клапаны карманов
     for(const u of [.37,.63]){g.fillStyle=sh(c,.6);g.fillRect(w*u-16,h*.74,32,12);g.fillStyle=leather?'rgba(170,175,190,.35)':sh(c,1.5);g.fillRect(w*u-16,h*.74,32,2);}
     if(sp.kind==='cop'){g.fillStyle='#8a1a1a';for(const u of [.25,.75])g.fillRect(w*u-10,2,20,10);g.fillStyle='#d8c030';g.fillRect(w*.36-4,h*.3,8,10);}
-    if(sp.kind==='omon'){g.fillStyle='#d8d8d0';g.font='bold 22px Arial';g.textAlign='center';g.fillText('ОМОН',w*1.0-w*0.0,h*.4);g.fillText('ОМОН',0,h*.4);}
+    if(sp.kind==='riot'){g.fillStyle='#d8d8d0';g.font='bold 22px Arial';g.textAlign='center';g.fillText('спецотряд',w*1.0-w*0.0,h*.4);g.fillText('спецотряд',0,h*.4);}
   });
   return PM[key]=MS({map:t,roughness:leather?.42:.9,metalness:leather?.08:0,envMapIntensity:leather?.6:.2});
 }
@@ -173,11 +173,11 @@ function makeHuman(sp){
     const cap=new THREE.Group();cap.position.set(-.1,2.6,0);cap.rotation.z=sp.hairStyle==='slick'?.32:.22;head.add(cap);
     cap.add(lm([R(0,1.82,1.7,-.25),R(.6,1.86,1.72,-.15),R(1.2,1.6,1.5,-.15),R(1.65,1.0,.95,-.2),R(1.85,.05,.05,-.25)],NT,HR));
     if(sp.hairStyle==='slick'){cap.add(lm([R(.9,.5,1.1,1.25),R(1.3,.45,1.0,1.05),R(1.5,.05,.4,.9)],6,HR));}
-  }else if(hat==='ushanka'){
+  }else if(hat==='furhat'){
     head.add(lm([R(2.6,2.0,1.9,-.1),R(3.4,1.98,1.88,-.1),R(4.1,1.55,1.45,-.15),R(4.55,.8,.75,-.15),R(4.65,.05,.05,-.15)],NT,HC));
     head.add(lm([R(3.0,.3,1.95,1.85),R(3.7,.35,1.85,1.75),R(3.9,.05,1.6,1.6)],6,HC));
     for(const z of [-1,1])head.add(lm([R(.9,.7,.25),R(1.6,.85,.3),R(3.0,.9,.32)],6,HC,-.2,0,z*1.85));
-  }else if(hat==='copcap'){
+  }else if(hat==='peakcap'){
     head.add(lm([R(3.3,1.78,1.68,-.05),R(4.3,1.85,1.75,-.05),R(4.55,2.25,2.15,.15),R(4.8,2.2,2.1,.2),R(4.9,.05,.05,.2)],NT,HC));
     head.add(lm([R(3.65,1.82,1.72,-.05),R(3.95,1.82,1.72,-.05)],NT,plainM(0xb02020,.6)));
     const vis=new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.5,.12,10,1,false,0,Math.PI),plainM(0x0b0b0b,.25));vis.rotation.y=Math.PI/2;vis.position.set(1.0,3.35,0);vis.scale.set(1,1,.7);head.add(vis);
@@ -199,7 +199,7 @@ function makeHuman(sp){
   }
   if(sp.shield){const s=new THREE.Mesh(new THREE.BoxGeometry(.5,9,5.5),MS({color:0x20303a,transparent:true,opacity:.55,roughness:.1,metalness:.3}));s.position.set(3.3,9.5,-1.2);g.add(s);}
   root.scale.set(sp.w||1,sp.h||1,sp.w||1);
-  root.userData={legs,arms,head,wep,kind:sp.kind,g,skirt,ph:rnd(0,6),cs:0,hy:0,hp:0,aim:0,omon:!!sp.shield};
+  root.userData={legs,arms,head,wep,kind:sp.kind,g,skirt,ph:rnd(0,6),cs:0,hy:0,hp:0,aim:0,riot:!!sp.shield};
   return root;
 }
 const CIV_COATS=['#2e3a4a','#4a2e2a','#3a4a3a','#5a5048','#2a2a30','#6a3a2a','#44485a','#5a4a2a','#7a6a4a','#3a3020'];
@@ -207,9 +207,9 @@ const SKINS=['#c48a64','#a8704c','#e0b08c','#8a5a3c','#d8a078'];
 const HAIRS=['#2a1c12','#5a4630','#8a8a8a','#b8a070','#141010','#3a2a1a'];
 function makePed(p){
   let sp;
-  if(p.kind==='cop'&&p.omon)sp={kind:'omon',coat:'#24281f',coatKind:'cloth',len:0,pants:0x20231e,skin:pick(SKINS),hair:'#222222',hat:'helmet',hatCol:0x121412,belt:1,vest:1,glove:1,gun:2,shield:Math.random()<.4,shoe:0x0b0b0b,inner:0x141414,w:1.05};
-  else if(p.kind==='cop')sp={kind:'cop',coat:'#3a4560',coatKind:'cloth',len:1,pants:0x1c2438,skin:pick(SKINS),hair:pick(HAIRS),hat:'copcap',hatCol:0x22304e,belt:1,gun:1,shoe:0x0b0b0b,inner:0xa8a898,stub:Math.random()<.4};
-  else{const f=Math.random()<.4;sp={kind:'civ',coat:pick(CIV_COATS),coatKind:'cloth',len:f?pick([1,2]):pick([0,1,2]),pants:f?pick([0x3a3030,0x2a2a32,0x4a4036]):pick([0x2a2e3a,0x3a3a3e,0x4a4036,0x25303f,0x30384a]),skin:pick(SKINS),hair:pick(HAIRS),hairStyle:pick(['short','short','slick','bald']),hat:Math.random()<.45?'ushanka':'none',hatCol:pick([0x5a4838,0x7a746a,0x3a3a3a,0x2a2a2a]),scarf:Math.random()<.35?pick(['#a0302a','#2e4a8a','#cfcfc0','#5a6a3a']):null,bag:Math.random()<.25,shoe:pick([0x1a1512,0x0b0b0c,0x3a2414]),inner:pick([0x1a1a1e,0x6a6a60,0x3a2a2a]),stub:!f&&Math.random()<.4,h:rnd(.94,1.06),w:rnd(.92,1.12)};
+  if(p.kind==='cop'&&p.riot)sp={kind:'riot',coat:'#24281f',coatKind:'cloth',len:0,pants:0x20231e,skin:pick(SKINS),hair:'#222222',hat:'helmet',hatCol:0x121412,belt:1,vest:1,glove:1,gun:2,shield:Math.random()<.4,shoe:0x0b0b0b,inner:0x141414,w:1.05};
+  else if(p.kind==='cop')sp={kind:'cop',coat:'#3a4560',coatKind:'cloth',len:1,pants:0x1c2438,skin:pick(SKINS),hair:pick(HAIRS),hat:'peakcap',hatCol:0x22304e,belt:1,gun:1,shoe:0x0b0b0b,inner:0xa8a898,stub:Math.random()<.4};
+  else{const f=Math.random()<.4;sp={kind:'civ',coat:pick(CIV_COATS),coatKind:'cloth',len:f?pick([1,2]):pick([0,1,2]),pants:f?pick([0x3a3030,0x2a2a32,0x4a4036]):pick([0x2a2e3a,0x3a3a3e,0x4a4036,0x25303f,0x30384a]),skin:pick(SKINS),hair:pick(HAIRS),hairStyle:pick(['short','short','slick','bald']),hat:Math.random()<.45?'furhat':'none',hatCol:pick([0x5a4838,0x7a746a,0x3a3a3a,0x2a2a2a]),scarf:Math.random()<.35?pick(['#a0302a','#2e4a8a','#cfcfc0','#5a6a3a']):null,bag:Math.random()<.25,shoe:pick([0x1a1512,0x0b0b0c,0x3a2414]),inner:pick([0x1a1a1e,0x6a6a60,0x3a2a2a]),stub:!f&&Math.random()<.4,h:rnd(.94,1.06),w:rnd(.92,1.12)};
     if(f){sp.hairStyle='short';sp.hair=pick(['#5a3a20','#2a1c12','#b8a070','#8a3a20']);sp.scarf=sp.scarf||pick(['#a0302a','#7a2a5a','#cfcfc0']);}}
   return makeHuman(sp);
 }
@@ -226,7 +226,7 @@ function updPed(m,p,L){
   u.legs[0].hip.rotation.z=s;u.legs[1].hip.rotation.z=-s;
   u.legs[0].kn.rotation.z=-Math.max(0,-s)*1.0;u.legs[1].kn.rotation.z=-Math.max(0,s)*1.0;
   const aim=p.aim||0;u.aim+=(aim-u.aim)*.3;
-  u.arms[0].sh.rotation.z=u.kind==='omon'?.7:-s*.8*(1-u.aim*.0);u.arms[0].el.rotation.z=u.kind==='omon'?-1.1:-.15-Math.abs(s)*.4;
+  u.arms[0].sh.rotation.z=u.kind==='riot'?.7:-s*.8*(1-u.aim*.0);u.arms[0].el.rotation.z=u.kind==='riot'?-1.1:-.15-Math.abs(s)*.4;
   const ra=u.arms[1];
   ra.sh.rotation.z=s*.8*(1-u.aim)+u.aim*1.45;ra.el.rotation.z=-.15*(1-u.aim)-Math.abs(s)*.4*(1-u.aim);
   if(u.skirt){u.skirt.rotation.z=-s*.3;}

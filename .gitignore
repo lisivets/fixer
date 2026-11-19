@@ -1,0 +1,7 @@
+CLAUDE.local.md
+.claude/
+*.local.md
+__pycache__/
+_three/
+_test.html
+_lite.html

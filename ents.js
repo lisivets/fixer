@@ -9,14 +9,14 @@ const WEAPONS=[
   {n:'РАКЕТНИЦА',rate:55,dmg:0,spd:8,auto:false,snd:'rocket',rocket:true}
 ];
 const CT={
-  sedan:{name:'ЖИГУЛИ ВАЗ-2101',len:42,wid:20,hp:90,acc:.15,max:6.8,grip:.82,mass:1,cols:['#d8c9a0','#a8321e','#e8e4d8','#3f7a6a','#d0a43a','#5a7ea8']},
-  sport:{name:'ЛАДА ВАЗ-2112',len:43,wid:20,hp:85,acc:.22,max:9,grip:.85,mass:1,cols:['#e8e8e8','#9aa0a6','#233a6a','#7a1f2a']},
-  moskvich:{name:'МОСКВИЧ-412',len:44,wid:20.5,hp:95,acc:.15,max:6.9,grip:.82,mass:1,cols:['#7fb0c8','#e0d4a8','#8a2a30','#c9c4b0']},
-  volga:{name:'ВОЛГА ГАЗ-24',len:50,wid:23,hp:125,acc:.15,max:7.3,grip:.82,mass:1.25,cols:['#15171a','#e8e8e0','#c9d8c0','#6a1c24']},
-  chaika:{name:'ЧАЙКА ГАЗ-13',len:57,wid:25,hp:190,acc:.14,max:7.8,grip:.8,mass:1.9,cols:['#14161a']},
+  sedan:{name:'СЕДАН 101',len:42,wid:20,hp:90,acc:.15,max:6.8,grip:.82,mass:1,cols:['#d8c9a0','#a8321e','#e8e4d8','#3f7a6a','#d0a43a','#5a7ea8']},
+  sport:{name:'КУПЕ 112',len:43,wid:20,hp:85,acc:.22,max:9,grip:.85,mass:1,cols:['#e8e8e8','#9aa0a6','#233a6a','#7a1f2a']},
+  compact:{name:'КОМПАКТ 412',len:44,wid:20.5,hp:95,acc:.15,max:6.9,grip:.82,mass:1,cols:['#7fb0c8','#e0d4a8','#8a2a30','#c9c4b0']},
+  executive:{name:'ЭКСПРЕСС 24',len:50,wid:23,hp:125,acc:.15,max:7.3,grip:.82,mass:1.25,cols:['#15171a','#e8e8e0','#c9d8c0','#6a1c24']},
+  limo:{name:'ЛИМУЗИН 13',len:57,wid:25,hp:190,acc:.14,max:7.8,grip:.8,mass:1.9,cols:['#14161a']},
   van:{name:'УАЗ-452 «БУХАНКА»',len:46,wid:22,hp:140,acc:.12,max:5.6,grip:.8,mass:1.5,cols:['#4f6b3a','#d86a1e','#c8c2a8']},
-  taxi:{name:'ТАКСИ ВОЛГА',len:50,wid:23,hp:125,acc:.15,max:7.3,grip:.82,mass:1.25,cols:['#e8b81c']},
-  cop:{name:'МИЛИЦИЯ ВАЗ-2106',len:43,wid:20,hp:130,acc:.22,max:8.6,grip:.85,mass:1.1,cols:['#eceae2']}
+  taxi:{name:'ТАКСИ',len:50,wid:23,hp:125,acc:.15,max:7.3,grip:.82,mass:1.25,cols:['#e8b81c']},
+  cop:{name:'ПАТРУЛЬ 06',len:43,wid:20,hp:130,acc:.22,max:8.6,grip:.85,mass:1.1,cols:['#eceae2']}
 };
 let CID=0;
 class Car{

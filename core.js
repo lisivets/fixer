@@ -1,6 +1,6 @@
 'use strict';
 // ===== Базовые константы и утилиты =====
-const TS=48,MW=60,MH=60,WW=MW*TS,WH=MH*TS;
+const TS=MAPDATA.TS,MW=MAPDATA.W,MH=MAPDATA.H,WW=MW*TS,WH=MH*TS,WL=-10; // WL: уровень воды
 const cv=document.getElementById('h'),ctx=cv.getContext('2d');
 let VW=0,VH=0,SC=1;
 function resize(){VW=cv.width=innerWidth;VH=cv.height=innerHeight;SC=Math.max(.6,VH/700);}
@@ -45,33 +45,30 @@ function snd(kind){try{
 }catch(e){}}
 
 // ===== Карта города =====
-// 0 дорога, 1 тротуар, 2 здание (твёрдое), 3 парк
+// типы: 0 дорога, 1 тротуар, 2 здание (твёрдое), 3 двор, 4 лес, 5 вода, 6 за краем карты, 7 песок, 8 парк
 const T=new Uint8Array(MW*MH);
-const BLK=[];
-const tileAt=(tx,ty)=>(tx<0||ty<0||tx>=MW||ty>=MH)?2:T[ty*MW+tx];
-const solidAt=(px,py)=>tileAt(Math.floor(px/TS),Math.floor(py/TS))===2;
-function mkBlock(bx,by){
-  const sp=((bx===1||bx===4)&&(by===1||by===4))?'vysotka':(bx===3&&by===2)?'basil':null;
-  const kind=sp||pick(['stalin','stalin','panel9','panel9','khrush','khrush','khrush']);
-  const cols={stalin:['#d9b872','#e3d2a2','#dba890','#cfa760'],panel9:['#c9ccc8','#d4d2c6','#bfc6c8'],khrush:['#d8d3bf','#cfd2c6','#dcd0b4'],vysotka:['#d9c9a2'],basil:['#a8412a']};
-  return {park:!sp&&Math.random()<.15,kind,col:pick(cols[kind])};
-}
+const tileAt=(tx,ty)=>(tx<0||ty<0||tx>=MW||ty>=MH)?6:T[ty*MW+tx];
+const isSol=t=>t===2||t===5||t===6;
+const walkable=t=>t===1||t===3||t===7||t===8;
+const solidAt=(px,py)=>isSol(tileAt(Math.floor(px/TS),Math.floor(py/TS)));
 function genMap(){
-  for(let by=0;by<6;by++){BLK[by]=[];for(let bx=0;bx<6;bx++)BLK[by][bx]=mkBlock(bx,by);}
-  for(let y=0;y<MH;y++)for(let x=0;x<MW;x++){
-    const mx=x%10,my=y%10;let t;
-    if(mx<2||my<2)t=0;
-    else if(mx===2||mx===9||my===2||my===9)t=1;
-    else t=BLK[(y/10)|0][(x/10)|0].park?3:2;
-    T[y*MW+x]=t;
-  }
+  const r=MAPDATA.T;let k=0;
+  for(let i=0;i<r.length;i+=2){const v=r[i],n=r[i+1];T.fill(v,k,k+n);k+=n;}
+}
+// рельеф: сетка высот (ячейка 64 ед.), билинейная выборка
+const HGW=MAPDATA.HG.w,HGH=MAPDATA.HG.h,HGC=MAPDATA.HG.cell;
+const HGD=(()=>{const b=atob(MAPDATA.HG.d),a=new Int16Array(b.length>>1);for(let i=0;i<a.length;i++)a[i]=((b.charCodeAt(i*2)|(b.charCodeAt(i*2+1)<<8))<<16)>>16;return a;})();
+function hAt(x,y){
+  const gx=clamp(x/HGC,0,HGW-1.001),gy=clamp(y/HGC,0,HGH-1.001),x0=gx|0,y0=gy|0,fx=gx-x0,fy=gy-y0;
+  const a=HGD[y0*HGW+x0],b=HGD[y0*HGW+x0+1],c=HGD[(y0+1)*HGW+x0],d=HGD[(y0+1)*HGW+x0+1];
+  return a+(b-a)*fx+(c-a)*fy+(a-b-c+d)*fx*fy;
 }
 // выталкивание круга из твёрдых тайлов
 function circleTilePush(x,y,r){
   let px=0,py=0,touched=false;
   const x0=Math.floor((x-r)/TS),x1=Math.floor((x+r)/TS),y0=Math.floor((y-r)/TS),y1=Math.floor((y+r)/TS);
   for(let ty=y0;ty<=y1;ty++)for(let tx=x0;tx<=x1;tx++){
-    if(tileAt(tx,ty)!==2)continue;
+    if(!isSol(tileAt(tx,ty)))continue;
     const cx=clamp(x,tx*TS,tx*TS+TS),cy=clamp(y,ty*TS,ty*TS+TS);
     let dx=x-cx,dy=y-cy,d=Math.hypot(dx,dy);
     if(d<r){

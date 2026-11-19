@@ -1,34 +1,51 @@
 'use strict';
 // ===== ИИ, физика, спавн =====
 const cam={x:0,y:0};
-const START={x:24.5*TS,y:22.5*TS};
+const START={x:MAPDATA.POI.start[0],y:MAPDATA.POI.start[1]};
 const minSpawn=()=>680;
-const DV=[[1,0],[0,1],[-1,0],[0,-1]];
-
+// ---- граф дорог для трафика ----
+let GADJ=null;
+function initGraph(){
+  const G=MAPDATA.G;GADJ=G.n.map(()=>[]);
+  G.e.forEach((e,i)=>{let L=0;for(let k=1;k<e.p.length;k++)L+=Math.hypot(e.p[k][0]-e.p[k-1][0],e.p[k][1]-e.p[k-1][1]);e.L=L;GADJ[e.a].push([i,1]);GADJ[e.b].push([i,-1]);});
+}
+// точка правой полосы ребра e в направлении d на расстоянии s вдоль движения
+function lanePt(e,d,s){
+  const P=e.p,L=e.L;let t=d>0?s:L-s;t=clamp(t,0,L);
+  for(let i=1;i<P.length;i++){
+    const dx=P[i][0]-P[i-1][0],dy=P[i][1]-P[i-1][1],l=Math.hypot(dx,dy);
+    if(t<=l||i===P.length-1){
+      const u=l?clamp(t/l,0,1):0,hx=dx/(l||1)*d,hy=dy/(l||1)*d,off=e.w/4;
+      return {x:P[i-1][0]+dx*u-hy*off,y:P[i-1][1]+dy*u+hx*off,hx,hy};
+    }
+    t-=l;
+  }
+}
 function laneSpawn(maxTry){
-  for(let i=0;i<maxTry;i++){
-    const a=rnd(0,6.28),d=rnd(minSpawn(),minSpawn()+450);
-    const tx=Math.floor((P.x+Math.cos(a)*d)/TS),ty=Math.floor((P.y+Math.sin(a)*d)/TS);
-    if(tx<4||ty<4||tx>MW-5||ty>MH-5)continue;
-    const mx=tx%10,my=ty%10;let dir;
-    if(my<2&&mx>=2)dir=my===1?0:2;else if(mx<2&&my>=2)dir=mx===0?1:3;else continue;
-    const x=(tx+.5)*TS,y=(ty+.5)*TS;
-    if(cars.some(c=>Math.hypot(c.x-x,c.y-y)<80))continue;
-    return {x,y,dir};
+  if(!GADJ)initGraph();
+  const E=MAPDATA.G.e;
+  for(let i=0;i<maxTry*4;i++){
+    const ei=Math.floor(Math.random()*E.length),e=E[ei];if(e.L<160)continue;
+    const d=Math.random()<.5?1:-1,s=rnd(40,e.L-40),p=lanePt(e,d,s);
+    const dd=Math.hypot(p.x-P.x,p.y-P.y);
+    if(dd<minSpawn()||dd>minSpawn()+620)continue;
+    if(tileAt(Math.floor(p.x/TS),Math.floor(p.y/TS))!==0)continue;
+    if(cars.some(c=>Math.hypot(c.x-p.x,c.y-p.y)<80))continue;
+    return {x:p.x,y:p.y,a:Math.atan2(p.hy,p.hx),edge:ei,ed:d,s};
   }
   return null;
 }
 function spawnTraffic(){
   const s=laneSpawn(12);if(!s)return;
-  const r=Math.random(),type=r<.07?'taxi':r<.14?'van':r<.17?'chaika':r<.3?'volga':r<.46?'moskvich':r<.62?'sport':'sedan';
-  const c=new Car(type,s.x,s.y,s.dir*Math.PI/2);
-  c.ai='traffic';c.dir=s.dir;
-  const sp=c.t.max*.5;c.vx=DV[s.dir][0]*sp;c.vy=DV[s.dir][1]*sp;
+  const r=Math.random(),type=r<.07?'taxi':r<.14?'van':r<.17?'limo':r<.3?'executive':r<.46?'compact':r<.62?'sport':'sedan';
+  const c=new Car(type,s.x,s.y,s.a);
+  c.ai='traffic';c.edge=s.edge;c.ed=s.ed;c.s=s.s;
+  const sp=c.t.max*.5;c.vx=Math.cos(s.a)*sp;c.vy=Math.sin(s.a)*sp;
   cars.push(c);
 }
 function spawnCop(){
   const s=laneSpawn(12);if(!s)return;
-  const c=new Car('cop',s.x,s.y,s.dir*Math.PI/2);c.ai='cop';c.dir=s.dir;cars.push(c);
+  const c=new Car('cop',s.x,s.y,s.a);c.ai='cop';cars.push(c);
 }
 function spawnPed(kind){
   for(let i=0;i<12;i++){
@@ -58,25 +75,19 @@ function blockedAhead(c,range){
   return false;
 }
 function aiTraffic(c){
-  const tx=Math.floor(c.x/TS),ty=Math.floor(c.y/TS),ix=Math.floor(tx/10),iy=Math.floor(ty/10);
-  const inter=tx%10<2&&ty%10<2&&tx>=0&&ty>=0;
-  if(inter){
-    const id=iy*10+ix;
-    if(id!==c.lastInter){
-      c.lastInter=id;
-      const ok=[ix<5,iy<5,ix>0,iy>0];
-      const opts=[c.dir,(c.dir+1)%4,(c.dir+3)%4].filter(d=>ok[d]);
-      c.dir=(Math.random()<.55&&ok[c.dir])?c.dir:pick(opts.length?opts:[(c.dir+2)%4]);
-    }
-  }else c.lastInter=-1;
-  if(tileAt(tx,ty)!==0){c.off++;}else c.off=0;
-  const bx=Math.floor(ty/10)*10,by=Math.floor(tx/10)*10;
-  let dx=DV[c.dir][0],dy=DV[c.dir][1];
-  if(c.dir===0)dy+=clamp(((bx+1.5)*TS-c.y)/50,-.8,.8);
-  else if(c.dir===2)dy+=clamp(((bx+.5)*TS-c.y)/50,-.8,.8);
-  else if(c.dir===1)dx+=clamp(((by+.5)*TS-c.x)/50,-.8,.8);
-  else dx+=clamp(((by+1.5)*TS-c.x)/50,-.8,.8);
-  const want=Math.atan2(dy,dx),str=clamp(angDiff(c.a,want)*2,-1,1);
+  if(!GADJ)initGraph();
+  const E=MAPDATA.G.e;let e=E[c.edge];
+  if(!e){c.off=9999;return;}
+  let lp=lanePt(e,c.ed,c.s);
+  while(c.s<e.L&&Math.hypot(c.x-lp.x,c.y-lp.y)<34){c.s+=14;lp=lanePt(e,c.ed,c.s);}
+  if(c.s>=e.L-2){ // конец ребра: выбрать следующее на перекрёстке
+    const node=c.ed>0?e.b:e.a,opts=GADJ[node].filter(([i,d])=>!(i===c.edge&&d===-c.ed));
+    const ch=opts.length?pick(opts):[c.edge,-c.ed];
+    c.edge=ch[0];c.ed=ch[1];c.s=0;e=E[c.edge];lp=lanePt(e,c.ed,18);
+  }
+  const tgt=lanePt(e,c.ed,Math.min(e.L,c.s+46));
+  if(tileAt(Math.floor(c.x/TS),Math.floor(c.y/TS))!==0){c.off++;}else c.off=0;
+  const want=Math.atan2(tgt.y-c.y,tgt.x-c.x),str=clamp(angDiff(c.a,want)*2,-1,1);
   const blk=blockedAhead(c,95);
   c.blocked=blk?c.blocked+1:0;
   if(c.blocked===150&&Math.random()<.5)snd('honk');

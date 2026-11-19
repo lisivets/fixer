@@ -37,16 +37,16 @@ function syncParts(){
   let f=0,s=0,k=0;
   for(const p of parts){
     const a=p.l/p.m,r=1-a;
-    if(p.k==='f'&&f<poolF.length){const o=poolF[f++];o.visible=true;o.position.set(p.x,8+r*30,p.y);o.scale.setScalar(p.s*2.6);o.material.opacity=.9*a;}
-    else if(p.k==='s'&&s<poolS.length){const o=poolS[s++];o.visible=true;o.position.set(p.x,10+r*60,p.y);o.scale.setScalar(p.s*3.2);o.material.opacity=.5*a;}
-    else if(p.k==='k'&&k<poolK.length){const o=poolK[k++];o.visible=true;o.position.set(p.x,10+r*6,p.y);o.scale.setScalar(4);o.material.opacity=a;}
+    if(p.k==='f'&&f<poolF.length){const o=poolF[f++];o.visible=true;o.position.set(p.x,hAt(p.x,p.y)+8+r*30,p.y);o.scale.setScalar(p.s*2.6);o.material.opacity=.9*a;}
+    else if(p.k==='s'&&s<poolS.length){const o=poolS[s++];o.visible=true;o.position.set(p.x,hAt(p.x,p.y)+10+r*60,p.y);o.scale.setScalar(p.s*3.2);o.material.opacity=.5*a;}
+    else if(p.k==='k'&&k<poolK.length){const o=poolK[k++];o.visible=true;o.position.set(p.x,hAt(p.x,p.y)+10+r*6,p.y);o.scale.setScalar(4);o.material.opacity=a;}
   }
   for(let i=f;i<poolF.length;i++)poolF[i].visible=false;
   for(let i=s;i<poolS.length;i++)poolS[i].visible=false;
   for(let i=k;i<poolK.length;i++)poolK[i].visible=false;
 }
 let camPitch=-.32,lookIdle=0,fpv=false;
-function carY(x,y){const t=tileAt(Math.floor(x/TS),Math.floor(y/TS));return(t===1||t===3)?SW:0;}
+function carY(x,y){const t=tileAt(Math.floor(x/TS),Math.floor(y/TS));return hAt(x,y)+(t===0?0:SW);}
 function updateCam(){
   const car=P.car;
   if(mouse.dx||mouse.dy){lookIdle=0;}
@@ -73,7 +73,7 @@ function updateCam(){
     const px=k=>tx-Math.cos(camYaw)*cp*k,pz=k=>tz-Math.sin(camYaw)*cp*k;
     while(d>14&&solidAt(px(d),pz(d)))d-=5;
     let cx=px(d),cy=ty-spn*d,cz=pz(d);
-    if(cy<3)cy=3;
+    cy=Math.max(cy,hAt(cx,cz)+SW+4);
     cam3.position.set(cx+rnd(-sh,sh),cy+rnd(-sh,sh),cz+rnd(-sh,sh));
     cam3.lookAt(tx,ty,tz);
   }
@@ -83,14 +83,14 @@ function updateCam(){
 let hurtV=0,dimV=0;
 const HEAD_ON=()=>{if(P.car)return;};
 function draw3D(){
-  if(MAPDIRTY&&tm%25===0){decalTex.needsUpdate=true;MAPDIRTY=false;}
+  if(window.WATER&&WATER.material.normalMap)WATER.material.normalMap.offset.set(tm*.0004,tm*.0002);
   updateCam();
   {const q=.4,tx=Math.round(P.x/q)*q,tz=Math.round(P.y/q)*q;sun.target.position.set(tx,0,tz);sun.position.set(tx+SUNDIR.x*1500,SUNDIR.y*1500,tz+SUNDIR.z*1500);}
   boomLight*=.9;boom.intensity=boomLight*3;boom.position.set(boomX,40,boomY);
   syncMap(cars,carMap,makeCar,(m,c)=>updCar(m,c));
   syncMap(peds,pedMap,makePed,(m,p)=>updPed(m,Object.assign(p,{aim:p.kind==='cop'&&p.cd>0&&P.heat>=2?1:0})),p=>p.dead);
-  syncMap(picks,pickMap,makePick,(m,k)=>{m.position.set(k.x,SW+12+Math.sin(tm/18+k.x)*2,k.y);m.rotation.y=tm*.04;});
-  syncMap(bullets,bulMap,makeBul,(m,b)=>{m.position.set(b.x,SW+11,b.y);m.rotation.y=-Math.atan2(b.vy,b.vx);});
+  syncMap(picks,pickMap,makePick,(m,k)=>{m.position.set(k.x,carY(k.x,k.y)+12+Math.sin(tm/18+k.x)*2,k.y);m.rotation.y=tm*.04;});
+  syncMap(bullets,bulMap,makeBul,(m,b)=>{m.position.set(b.x,carY(b.x,b.y)+11,b.y);m.rotation.y=-Math.atan2(b.vy,b.vx);});
   playerMesh.visible=!P.car&&!P.dead&&!fpv&&!(P.busted>0&&false);
   if(!P.car&&!P.dead){
     updPed(playerMesh,{x:P.x,y:P.y,a:P.a,step:P.moved*3,moving:P.moving,fast:P.fast,aim:P.cd>0?1:0,w:P.w,head:{yaw:clamp(angDiff(P.a,camYaw),-1.9,1.9),pitch:clamp(-camPitch,-.8,.8)}});

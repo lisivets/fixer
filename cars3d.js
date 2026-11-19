@@ -3,10 +3,10 @@
 const STY={
   sedan:{belt:11,cabA:-.20,cabB:.13,rkF:.07,rkR:.05,ch:8.5,lights:'round',chrome:1,n:3.4},
   sport:{belt:11,cabA:-.33,cabB:.13,rkF:.14,rkR:.17,ch:8.5,lights:'wedge',n:3},
-  moskvich:{belt:11,cabA:-.23,cabB:.14,rkF:.05,rkR:.02,ch:9,lights:'round',chrome:1,n:3.6},
-  volga:{belt:11.5,cabA:-.20,cabB:.09,rkF:.09,rkR:.07,ch:8,lights:'volga',chrome:1,strip:1,n:4},
-  taxi:{belt:11.5,cabA:-.20,cabB:.09,rkF:.09,rkR:.07,ch:8,lights:'volga',chrome:1,strip:1,taxi:1,n:4},
-  chaika:{belt:12,cabA:-.26,cabB:.03,rkF:.10,rkR:.06,ch:8,lights:'chaika',chrome:1,strip:1,fins:1,n:4.4},
+  compact:{belt:11,cabA:-.23,cabB:.14,rkF:.05,rkR:.02,ch:9,lights:'round',chrome:1,n:3.6},
+  executive:{belt:11.5,cabA:-.20,cabB:.09,rkF:.09,rkR:.07,ch:8,lights:'executive',chrome:1,strip:1,n:4},
+  taxi:{belt:11.5,cabA:-.20,cabB:.09,rkF:.09,rkR:.07,ch:8,lights:'executive',chrome:1,strip:1,taxi:1,n:4},
+  limo:{belt:12,cabA:-.26,cabB:.03,rkF:.10,rkR:.06,ch:8,lights:'limo',chrome:1,strip:1,fins:1,n:4.4},
   van:{belt:13,cabA:-.46,cabB:.17,rkF:.04,rkR:0,ch:9.5,lights:'round',n:5},
   cop:{belt:11,cabA:-.20,cabB:.13,rkF:.07,rkR:.05,ch:8.5,lights:'round',chrome:1,cop:1,n:3.4}
 };
@@ -141,11 +141,11 @@ function makeCar(c){
   mkHead(-1);mkHead(1);
   // решётка
   const gm=S.lights;
-  if(gm==='chaika'){
+  if(gm==='limo'){
     tilt.add(mesh(new THREE.BoxGeometry(.8,4.6,W-10),DARK_M,L/2-.2,B-3.4,0,false));
     for(let i=0;i<9;i++)tilt.add(mesh(new THREE.BoxGeometry(1,4.4,.6),CHR_M,L/2+.2,B-3.4,-(W-13)/2+i*(W-13)/8,false));
     tilt.add(mesh(new THREE.BoxGeometry(1.2,.9,W-8),CHR_M,L/2+.1,B-.8,0,false),mesh(new THREE.BoxGeometry(1.2,.9,W-8),CHR_M,L/2+.1,B-6,0,false));
-  }else if(gm==='volga'){
+  }else if(gm==='executive'){
     tilt.add(mesh(new THREE.BoxGeometry(.7,4,W-12),DARK_M,L/2-.2,B-3.2,0,false));
     for(let i=0;i<4;i++)tilt.add(mesh(new THREE.BoxGeometry(.9,.55,W-12),CHR_M,L/2+.2,B-4.7+i*1.2,0,false));
   }else{

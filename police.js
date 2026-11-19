@@ -1,8 +1,8 @@
 'use strict';
-// ===== Милиция: свидетели, розыск, погоня, поиск, блокпосты, ОМОН, вертолёт, задержание =====
+// ===== Полиция: свидетели, розыск, погоня, поиск, блокпосты, спецотряд, вертолёт, задержание =====
 const MSGS=[];
 function pushMsg(t,col){MSGS.push({t:260,text:t,col:col||'#fff'});if(MSGS.length>5)MSGS.shift();}
-let calls=[],heli=null,heliCool=0,omonCool=0,blockCool=0,arrestT=0,searching=false;
+let calls=[],heli=null,heliCool=0,riotCool=0,blockCool=0,arrestT=0,searching=false;
 P.seen=false;P.lastX=0;P.lastY=0;P.busted=0;P.moving=false;P.fast=false;
 const copCars=()=>cars.filter(c=>c.type==='cop'&&!c.dead&&!c.burn);
 function los(x1,y1,x2,y2){const d=Math.hypot(x2-x1,y2-y1),n=Math.ceil(d/14);for(let i=1;i<n;i++){const t=i/n;if(solidAt(x1+(x2-x1)*t,y1+(y2-y1)*t))return false;}return true;}
@@ -16,10 +16,10 @@ function crime(kind,x,y,sev,minH){
   if(heli)copSaw=true;
   if(copSaw){
     const was=P.heat;P.heat=Math.max(P.heat+sev,minH);P.lastX=P.x;P.lastY=P.y;P.seen=true;
-    if(was<1)pushMsg('Милиция заметила преступление!','#ff6a5a');
+    if(was<1)pushMsg('Полиция заметила преступление!','#ff6a5a');
     return;
   }
-  // свидетели-горожане звонят в милицию
+  // свидетели-горожане звонят в полицию
   let w=0;
   for(const p of peds)if(p.kind==='civ'&&!p.dead&&Math.hypot(p.x-x,p.y-y)<280&&los(p.x,p.y,x,y)){
     w++;if(p.flee<=0){p.flee=200;p.a=Math.atan2(p.y-y,p.x-x)+rnd(-.5,.5);}
@@ -35,14 +35,14 @@ function policeUpdate(){
     const c=calls[i];c.t--;
     if(c.t<=0){
       calls.splice(i,1);
-      if(P.heat<1)pushMsg('Свидетель вызвал милицию','#ffcf5a');
+      if(P.heat<1)pushMsg('Свидетель вызвал полицию','#ffcf5a');
       P.heat=Math.max(P.heat+c.sev*.6,c.min);P.lastX=c.x;P.lastY=c.y;
       // ближайшая патрульная едет на место
       let b=null,bd=1e9;for(const k of copCars()){const d=Math.hypot(k.x-c.x,k.y-c.y);if(d<bd){bd=d;b=k;}}
       if(b)b.ai='cop';
     }
   }
-  // видимость игрока милицией
+  // видимость игрока полицией
   if(tm%6===0){
     let seen=false;const tgt=P.car||P;
     if(heli&&Math.hypot(heli.x-P.x,heli.y-P.y)<900)seen=true;
@@ -60,18 +60,18 @@ function policeUpdate(){
     // патруль замечает розыск: переключение в погоню
     if(P.heat>=1&&c.ai==='traffic'&&P.seen&&Math.hypot(c.x-P.x,c.y-P.y)<520)c.ai='cop';
   }
-  // ОМОН
-  omonCool--;
-  if(L>=4&&omonCool<=0&&!cars.some(c=>c.omon)){
+  // спецотряд
+  riotCool--;
+  if(L>=4&&riotCool<=0&&!cars.some(c=>c.riot)){
     const s=laneSpawn(12);
-    if(s){const c=new Car('van',s.x,s.y,s.dir*Math.PI/2);c.col='#2c3a2a';c.roof='#33442f';c.ai='cop';c.dir=s.dir;c.omon=4;c.siren=true;cars.push(c);pushMsg('Выезжает ОМОН!','#ff6a5a');}
-    omonCool=900;
+    if(s){const c=new Car('van',s.x,s.y,s.a);c.col='#2c3a2a';c.roof='#33442f';c.ai='cop';c.riot=4;c.siren=true;cars.push(c);pushMsg('Выезжает спецотряд!','#ff6a5a');}
+    riotCool=900;
   }
-  for(const c of cars)if(c.omon&&!c.dead){
+  for(const c of cars)if(c.riot&&!c.dead){
     const d=Math.hypot(c.x-P.x,c.y-P.y);
     if(d<200&&c.speed<5.5&&los(c.x,c.y,P.x,P.y)){
-      for(let i=0;i<c.omon;i++){const p=new Ped(c.x+Math.cos(c.a+1.57)*(c.wid/2+8)+rnd(-8,8),c.y+Math.sin(c.a+1.57)*(c.wid/2+8)+rnd(-8,8),'cop');p.omon=true;p.hp=90;peds.push(p);}
-      c.omon=0;pushMsg('ОМОН высаживается!','#ff6a5a');
+      for(let i=0;i<c.riot;i++){const p=new Ped(c.x+Math.cos(c.a+1.57)*(c.wid/2+8)+rnd(-8,8),c.y+Math.sin(c.a+1.57)*(c.wid/2+8)+rnd(-8,8),'cop');p.riot=true;p.hp=90;peds.push(p);}
+      c.riot=0;pushMsg('Спецотряд высаживается!','#ff6a5a');
     }
   }
   // блокпосты
@@ -120,7 +120,7 @@ function arrest(){
   if(arrestT>150){
     arrestT=0;P.busted=200;
     const lost=Math.floor(P.money*.5);P.money-=lost;
-    pushMsg('Вас задержали. Штраф и конфискация оружия: -'+lost+' ₽','#7ab0ff');
+    pushMsg('Вас задержали. Штраф и конфискация оружия: -'+lost+' $','#7ab0ff');
     if(P.car){const c=P.car;P.car=null;c.ai=null;const i=cars.indexOf(c);if(i>=0)cars.splice(i,1);}
   }
 }
@@ -143,7 +143,7 @@ function sirens(){
     sirO.frequency.value=(tm%120<60)?700+Math.sin((tm%60)/60*Math.PI)*400:1100-Math.sin((tm%60)/60*Math.PI)*400;
   }catch(e){}
 }
-// ИИ милиционера на ногах
+// ИИ полицейского на ногах
 function copFootAI(p,tgt){
   const heat=P.heat,d=Math.hypot(tgt.x-p.x,tgt.y-p.y);
   const sees=d<460&&los(p.x,p.y,tgt.x,tgt.y);
@@ -164,7 +164,7 @@ function copFootAI(p,tgt){
   return {move:d>keep?1:0,stop:d<=keep};
 }
 function copShoot(p,d){
-  p.cd--;if(p.cd>0)return;p.cd=p.omon?ri(14,24):ri(28,48);
+  p.cd--;if(p.cd>0)return;p.cd=p.riot?ri(14,24):ri(28,48);
   const a=p.a+rnd(-.12,.12);
-  bullets.push({x:p.x+Math.cos(a)*8,y:p.y+Math.sin(a)*8,vx:Math.cos(a)*11,vy:Math.sin(a)*11,l:42,dmg:p.omon?9:7,owner:'cop',rocket:false});snd(p.omon?'smg':'shot');
+  bullets.push({x:p.x+Math.cos(a)*8,y:p.y+Math.sin(a)*8,vx:Math.cos(a)*11,vy:Math.sin(a)*11,l:42,dmg:p.riot?9:7,owner:'cop',rocket:false});snd(p.riot?'smg':'shot');
 }
