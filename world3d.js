@@ -65,7 +65,7 @@ function buildTerrain(){
   cornerHeights();
   const M={
     road:pbrMat(PBR.asphalt,{color:0xd8d8dc}),walk:pbrMat(PBR.paving,{color:0xd0ccc4}),
-    ground:pbrMat(PBR.snow,{roughness:.9,vertexColors:true}),curb:pbrMat(PBR.curb),
+    ground:pbrMat(PBR.snow,{roughness:.9,vertexColors:true}),curb:pbrMat(PBR.curb,{normalMap:null,roughness:1,metalness:0}),
     cliff:new THREE.MeshStandardMaterial({color:0x1a1f25,roughness:1}),
     water:new THREE.MeshStandardMaterial({color:0x6c8ea8,map:PBR.water.map,normalMap:PBR.water.normalMap,roughness:.1,metalness:.25,envMapIntensity:1.9})
   };

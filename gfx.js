@@ -79,12 +79,19 @@ const FINAL={uniforms:{tDiffuse:{value:null},time:{value:0},exposure:{value:.82}
     ' c+=(g-0.5)*0.022;',
     ' gl_FragColor=vec4(c,1.0);',
     '}'].join('\n')};
+const SAN={uniforms:{tDiffuse:{value:null}},
+  vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+  fragmentShader:['uniform sampler2D tDiffuse;varying vec2 vUv;',
+    'void main(){vec3 c=texture2D(tDiffuse,vUv).rgb;',
+    ' if(!(c.r==c.r)||!(c.g==c.g)||!(c.b==c.b))c=vec3(0.0);', // NaN -> 0
+    ' c=clamp(c,vec3(0.0),vec3(16.0));gl_FragColor=vec4(c,1.0);}'].join('\n')};
 let composer=null,bloom=null,finalPass=null;
 if(HQ){
   const rt=new THREE.WebGLMultisampleRenderTarget(innerWidth*PR,innerHeight*PR,{format:THREE.RGBAFormat,type:THREE.HalfFloatType,minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter});
   rt.samples=4;
   composer=new THREE.EffectComposer(gl,rt);
   composer.addPass(new THREE.RenderPass(scene,cam3));
+  composer.addPass(new THREE.ShaderPass(SAN));
   bloom=new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),.5,.6,1.15);
   for(const t of [bloom.renderTargetBright,...bloom.renderTargetsHorizontal,...bloom.renderTargetsVertical]){t.texture.type=THREE.HalfFloatType;t.dispose();}
   composer.addPass(bloom);
