@@ -35,7 +35,7 @@ GB.prototype.mesh=function(mat,cast,recv){
 let HC=null;
 const hc=(tx,ty)=>HC[ty*(MW+1)+tx];
 function cornerHeights(){HC=new Float32Array((MW+1)*(MH+1));for(let y=0;y<=MH;y++)for(let x=0;x<=MW;x++)HC[y*(MW+1)+x]=hAt(x*TS,y*TS);}
-const lev=t=>t===0?0:SW;
+const lev=()=>SW; // дорога и тротуар в одной плоскости: полотно и бордюр — отдельные ленты (roads3d.js)
 // вертикальная грань вдоль ребра тайла; n=(nx,nz) наружу; y0/y1 — функции высоты по точке (x,z)
 function wall(gb,tx,ty,nx,nz,y0,y1,col,vs){
   const x0=tx*TS,z0=ty*TS,x1=x0+TS,z1=z0+TS;
@@ -79,14 +79,13 @@ function buildTerrain(){
       const x0=tx*TS,z0=ty*TS;
       if(t===5){const y=WL;Wa.q([x0,y,z0],[x0+TS,y,z0],[x0+TS,y,z0+TS],[x0,y,z0+TS],[x0/160,z0/160,(x0+TS)/160,z0/160,(x0+TS)/160,(z0+TS)/160,x0/160,(z0+TS)/160]);continue;}
       const q=qy(tx,ty,lev(t)),uvq=(s)=>[x0/s,z0/s,(x0+TS)/s,z0/s,(x0+TS)/s,(z0+TS)/s,x0/s,(z0+TS)/s];
-      if(t===0)R.q(q[0],q[1],q[2],q[3],uvq(96));
-      else if(t===1)Wk.q(q[0],q[1],q[2],q[3],uvq(40));
+      // тайлы 0 и 1 под лентами улиц — обычная земля; тротуарный тайл вне лент (набережная, дорожки) остаётся плиткой
+      if(t===1&&!RN.cover[ty*MW+tx])Wk.q(q[0],q[1],q[2],q[3],uvq(40));
       else Gr.q(q[0],q[1],q[2],q[3],uvq(70),GCOL[t]||[1,1,1]); // t===2 (под зданием) тоже получает землю
       for(const [dx,dz] of [[0,-1],[0,1],[-1,0],[1,0]]){
         const nt=tileAt(tx+dx,ty+dz);
         const top=(x,z)=>hAt(x,z)+lev(t);
-        if(t!==0&&nt===0)wall(Cb,tx,ty,dx,dz,(x,z)=>hAt(x,z),top,22,[1,1,1]);
-        else if(nt===5){
+        if(nt===5){
           wall(Cb,tx,ty,dx,dz,()=>WL,top,22,[.8,.8,.8]);
           if(t===0||t===1){ // парапет набережной и моста
             const px=tx*TS,pz=ty*TS,th=3,y=hAt(px+TS/2,pz+TS/2)+lev(t);
@@ -104,7 +103,7 @@ function buildTerrain(){
   const dark=new THREE.Mesh(new THREE.PlaneGeometry(WW+6000,WH+6000),new THREE.MeshBasicMaterial({color:0x07090c}));
   dark.rotation.x=-Math.PI/2;dark.position.set(WW/2,WL-60,WH/2);world.add(dark);
 }
-// ---------- Разметка по графу дорог ----------
+// ---------- Вспомогательное по ломаным (разметка — в roads3d.js) ----------
 function polyLen(p){let L=0;for(let i=1;i<p.length;i++)L+=Math.hypot(p[i][0]-p[i-1][0],p[i][1]-p[i-1][1]);return L;}
 function polyAt(p,s){ // точка и направление на расстоянии s
   for(let i=1;i<p.length;i++){
@@ -112,39 +111,6 @@ function polyAt(p,s){ // точка и направление на рассто�
     if(s<=l||i===p.length-1){const t=l?clamp(s/l,0,1):0;return {x:p[i-1][0]+dx*t,y:p[i-1][1]+dy*t,dx:dx/(l||1),dy:dy/(l||1)};}
     s-=l;
   }
-}
-function buildMarkings(){
-  const mk=new GB(),deg=new Array(MAPDATA.G.n.length).fill(0);
-  for(const e of MAPDATA.G.e){deg[e.a]++;deg[e.b]++;}
-  const strip=(x,z,dx,dz,len,wid,col)=>{ // прямоугольник вдоль (dx,dz)
-    const nx=-dz*wid/2,nz=dx*wid/2,ex=dx*len,ez=dz*len;
-    const P=[[x-nx,z-nz],[x-nx+ex,z-nz+ez],[x+nx+ex,z+nz+ez],[x+nx,z+nz]].map(([a,b])=>[a,hAt(a,b)+.2,b]);
-    mk.q(P[0],P[1],P[2],P[3],[0,0,1,0,1,1,0,1],col);
-  };
-  const W=[.9,.9,.86],Y=[.93,.78,.25];
-  for(const e of MAPDATA.G.e){
-    const L=polyLen(e.p),hw=e.w/2;
-    if(L<hw*2+60)continue;
-    const s0=hw+10,s1=L-hw-10;
-    // осевая: широкие дороги — сплошная жёлтая двойная; узкие — пунктир
-    for(let s=s0;s<s1-4;s+=e.w>=128?14:46){
-      const a=polyAt(e.p,s);
-      if(e.w>=128){strip(a.x-a.dy*2.4,a.y+a.dx*2.4,a.dx,a.dy,15,1.4,Y);strip(a.x+a.dy*2.4,a.y-a.dx*2.4,a.dx,a.dy,15,1.4,Y);}
-      else strip(a.x,a.y,a.dx,a.dy,22,2.2,W);
-    }
-    if(e.w>=128)for(const side of [-1,1])for(let s=s0;s<s1-4;s+=14){
-      const a=polyAt(e.p,s),o=side*(hw-5);strip(a.x-a.dy*o,a.y+a.dx*o,a.dx,a.dy,15,1.6,W);
-    }
-    // зебры у перекрёстков
-    for(const [end,node] of [[0,e.a],[1,e.b]]){
-      if(deg[node]<3||L<hw*2+160)continue;
-      const s=end?L-hw-22:hw+22,a=polyAt(e.p,s);
-      for(let k=-hw+8;k<hw-6;k+=10)strip(a.x-a.dy*k,a.y+a.dx*k,a.dx,a.dy,12,5,W);
-    }
-  }
-  const m=new THREE.Mesh((()=>{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(mk.p,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(mk.u,2));g.setAttribute('color',new THREE.Float32BufferAttribute(mk.c,3));g.setIndex(mk.i);g.computeVertexNormals();return g;})(),
-    new THREE.MeshBasicMaterial({vertexColors:true,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2,transparent:true,opacity:.82,depthWrite:false}));
-  m.renderOrder=2;world.add(m);
 }
 // ---------- Деревья (хвойные, чанками) ----------
 function firGeo(){
@@ -241,7 +207,7 @@ function scorch(x,y,r){putDecal(x,y,r*2,'s');}
 function build3D(){
   if(world)scene.remove(world);
   world=new THREE.Group();scene.add(world);LAMPS.length=0;
-  buildTerrain();buildMarkings();
+  planRoads();buildTerrain();buildRoads();
   initDecals();
   placeBuildings();
   buildTrees();buildProps();
