@@ -34,7 +34,7 @@ function mergeG(list){
     for(const k of g.index.array)idx.push(k+off);off+=p.count;}
   const m=new THREE.BufferGeometry();m.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));m.setAttribute('normal',new THREE.Float32BufferAttribute(nor,3));m.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));m.setIndex(idx);return m;
 }
-const mesh=(g,m,x,y,z)=>{const o=new THREE.Mesh(g,m);o.position.set(x||0,y||0,z||0);o.castShadow=true;return o;};
+const hmesh=(g,m,x,y,z)=>{const o=new THREE.Mesh(g,m);o.position.set(x||0,y||0,z||0);o.castShadow=true;return o;};
 
 // ---------- ГОЛОВА: профиль + лицевой рельеф ----------
 const HH=2.95; // высота головы (подбородок → макушка)
@@ -205,12 +205,12 @@ function chainGroup(){
     const g=lg.clone();g.scale(1.3,.8,1);g.applyMatrix4(new THREE.Matrix4().makeRotationX(i%2?Math.PI/2:0));
     g.applyMatrix4(new THREE.Matrix4().compose(p,q,new THREE.Vector3(1,1,1)));links.push(g);
   }
-  grp.add(mesh(mergeG(links),GM));
+  grp.add(hmesh(mergeG(links),GM));
   // крест на нижней точке дуги
   const sh=new THREE.Shape();const a=.075,b=.42,c=.25,d=.16;
   sh.moveTo(-a,b);sh.lineTo(a,b);sh.lineTo(a,d+.05);sh.lineTo(c,d+.05);sh.lineTo(c,d-.05);sh.lineTo(a,d-.05);sh.lineTo(a,-b);sh.lineTo(-a,-b);sh.lineTo(-a,d-.05);sh.lineTo(-c,d-.05);sh.lineTo(-c,d+.05);sh.lineTo(-a,d+.05);sh.closePath();
   const cg=new THREE.ExtrudeGeometry(sh,{depth:.07,bevelEnabled:true,bevelThickness:.02,bevelSize:.02,bevelSegments:1});cg.translate(0,0,-.035);cg.rotateY(Math.PI/2); // лицом вперёд (+x)
-  const bot=curve.getPointAt(.5);grp.add(mesh(cg,GM,bot.x+.06,bot.y-.5,0));
+  const bot=curve.getPointAt(.5);grp.add(hmesh(cg,GM,bot.x+.06,bot.y-.5,0));
   return grp;
 }
 // ---------- кисть ----------
@@ -246,47 +246,47 @@ function makeHero(){
   const black=MS({color:0x050505,roughness:.6});
   // шея и голова
   const neckG=grid(14,8,(u,v)=>{const y=lerpf(17.5,19.9,v),k=(y-17.5)/2.4,r=lerpf(.86,.70,Math.min(1,k*1.2)),s=se((u-.5)*TAU,r,r*1.02,2.2,-.08+k*.14);return [s[0],y,s[1],u,v];},{wrap:true,orient:[0,18,0]});
-  g.add(mesh(neckG,SK));
+  g.add(hmesh(neckG,SK));
   const head=new THREE.Group();head.position.set(.12,19.0,0);g.add(head);
-  const hm=mesh(headGeo(),MS({map:skinFaceTex(skin),roughness:.58}),0,.55,0);head.add(hm);
-  head.add(mesh(hairGeo(),MS({map:hairTex('#1a110d'),roughness:.45,alphaTest:.5,side:THREE.DoubleSide}),0,.55,0));
+  const hm=hmesh(headGeo(),MS({map:skinFaceTex(skin),roughness:.58}),0,.55,0);head.add(hm);
+  head.add(hmesh(hairGeo(),MS({map:hairTex('#1a110d'),roughness:.45,alphaTest:.5,side:THREE.DoubleSide}),0,.55,0));
   for(const z of [-1,1]){ // уши
     const ear=loftG([R(-.42,.04,.03),R(-.26,.2,.10),R(0,.26,.13),R(.3,.22,.11),R(.46,.05,.04)],8);
-    const e=mesh(ear,SK,-.22,.55+1.55,z*.98);e.rotation.x=-z*.28;e.scale.set(1,1,1);head.add(e);
+    const e=hmesh(ear,SK,-.22,.55+1.55,z*.98);e.rotation.x=-z*.28;e.scale.set(1,1,1);head.add(e);
   }
   // торс: рубашка, брюки (таз), ремень
-  g.add(mesh(shirtGeo(),shirtM));
+  g.add(hmesh(shirtGeo(),shirtM));
   const pelv=grid(HRES?32:22,12,(u,v)=>{const y=lerpf(10.0,12.95,v),t=spl([[10,1.28,1.7,0,2.3],[10.8,1.5,1.95,0,2.4],[11.8,1.52,2.05,0,2.4],[12.95,1.52,2.07,0,2.4]],y),s=se((u-.5)*TAU,t[0],t[1],t[3],t[2]);return [s[0],y,s[1],u,v];},{wrap:true,orient:[0,11,0]});
-  g.add(mesh(pelv,pantsM));
+  g.add(hmesh(pelv,pantsM));
   const belt=grid(32,2,(u,v)=>{const s=se((u-.5)*TAU,1.56,2.1,2.4,0);return [s[0],lerpf(12.5,13.0,v),s[1],u,v];},{wrap:true,orient:[0,12.7,0]});
-  g.add(mesh(belt,MS({color:0x0a0a0a,roughness:.4,side:THREE.DoubleSide})));
-  const bk=mesh(new THREE.BoxGeometry(.1,.46,.62),metal,1.6,12.75,0);g.add(bk);g.add(mesh(new THREE.BoxGeometry(.12,.3,.44),black,1.62,12.75,0));
+  g.add(hmesh(belt,MS({color:0x0a0a0a,roughness:.4,side:THREE.DoubleSide})));
+  const bk=hmesh(new THREE.BoxGeometry(.1,.46,.62),metal,1.6,12.75,0);g.add(bk);g.add(hmesh(new THREE.BoxGeometry(.12,.3,.44),black,1.62,12.75,0));
   // цепочка
   g.add(chainGroup());
   // воротник рубашки
-  g.add(mesh(grid(24,3,(u,v)=>{const sx=se((u-.5)*TAU,.9,.92,2.2,-.1+v*.1);return [sx[0],lerpf(18.85,19.5,v),sx[1],u,v];},{wrap:true,orient:[0,19,0]}),whiteM));
-  for(const s of [-1,1])g.add(mesh(collarLeaf(s),whiteM));
+  g.add(hmesh(grid(24,3,(u,v)=>{const sx=se((u-.5)*TAU,.9,.92,2.2,-.1+v*.1);return [sx[0],lerpf(18.85,19.5,v),sx[1],u,v];},{wrap:true,orient:[0,19,0]}),whiteM));
+  for(const s of [-1,1])g.add(hmesh(collarLeaf(s),whiteM));
   // пиджак: половины, лацканы, клапаны, пуговицы
   for(const s of [-1,1]){
-    g.add(mesh(jacketHalf(s),jacketM));
-    g.add(mesh(lapelGeo(s),lapelM));
-    g.add(mesh(surfFlap(s,.40,.86,9.85,10.45,.06),jacketM));
-    g.add(mesh(surfFlap(s,.40,.86,10.45,10.55,.045),black));
+    g.add(hmesh(jacketHalf(s),jacketM));
+    g.add(hmesh(lapelGeo(s),lapelM));
+    g.add(hmesh(surfFlap(s,.40,.86,9.85,10.45,.06),jacketM));
+    g.add(hmesh(surfFlap(s,.40,.86,10.45,10.55,.045),black));
   }
-  g.add(mesh(surfFlap(-1,.85,1.2,15.1,15.28,.07),black)); // нагрудный карман
-  for(const y of [12.9,11.75]){const bt=mesh(new THREE.CylinderGeometry(.11,.11,.05,10),black,spl(JT,y)[0]+spl(JT,y)[2]+.06,y,.0);bt.rotation.z=Math.PI/2;g.add(bt);}
+  g.add(hmesh(surfFlap(-1,.85,1.2,15.1,15.28,.07),black)); // нагрудный карман
+  for(const y of [12.9,11.75]){const bt=hmesh(new THREE.CylinderGeometry(.11,.11,.05,10),black,spl(JT,y)[0]+spl(JT,y)[2]+.06,y,.0);bt.rotation.z=Math.PI/2;g.add(bt);}
   // ноги
   const legs=[];
   for(const z of [-1.0,1.0]){
     const hip=new THREE.Group();hip.position.set(0,11.0,z);
     const th=grid(HRES?26:18,12,(u,v)=>{const y=lerpf(1.2,-4.9,v),t=spl([[-4.9,1.22,1.2],[-2.5,1.38,1.3],[0,1.5,1.42],[1.2,1.55,1.5]],y),s=se((u-.5)*TAU,t[0],t[1],2.2);return [s[0],y,s[1],u,v];},{wrap:true,orient:[0,-2,0]});
-    hip.add(mesh(th,pantsM));
+    hip.add(hmesh(th,pantsM));
     const kn=new THREE.Group();kn.position.set(0,-4.9,0);hip.add(kn);
     const sn=grid(HRES?26:18,12,(u,v)=>{const y=lerpf(0,-5.45,v),t=spl([[-5.45,1.23,1.2],[-4,1.2,1.18],[-2,1.2,1.18],[0,1.22,1.2]],y),s=se((u-.5)*TAU,t[0],t[1],2.2);return [s[0],y,s[1],u,v];},{wrap:true,orient:[0,-2.5,0]});
-    kn.add(mesh(sn,pantsM));
+    kn.add(hmesh(sn,pantsM));
     const shoe=new THREE.Group();shoe.position.set(.0,-5.1,0);kn.add(shoe);
-    shoe.add(mesh(shoeGeo(SHT),leather));shoe.add(mesh(shoeGeo(SOLT,1.02),sole));shoe.scale.set(1.12,1.18,1.12);
-    for(const l of [.55,.85,1.15,1.45]){const top=spl(SHT,l)[0],w=spl(SHT,l)[2];const lc=mesh(new THREE.BoxGeometry(.07,.035,w*1.5),MS({color:0x1c1c1e,roughness:.7}),l,top+.01,0);lc.rotation.z=-.3;shoe.add(lc);}
+    shoe.add(hmesh(shoeGeo(SHT),leather));shoe.add(hmesh(shoeGeo(SOLT,1.02),sole));shoe.scale.set(1.12,1.18,1.12);
+    for(const l of [.55,.85,1.15,1.45]){const top=spl(SHT,l)[0],w=spl(SHT,l)[2];const lc=hmesh(new THREE.BoxGeometry(.07,.035,w*1.5),MS({color:0x1c1c1e,roughness:.7}),l,top+.01,0);lc.rotation.z=-.3;shoe.add(lc);}
     g.add(hip);legs.push({hip,kn});
   }
   // руки
@@ -294,14 +294,14 @@ function makeHero(){
   for(const z of [-2.78,2.78]){
     const side=Math.sign(z);
     const s=new THREE.Group();s.position.set(-.05,18.05,z);s.rotation.x=-side*.05;
-    s.add(mesh(grid(HRES?20:14,10,(u,v)=>{const y=lerpf(.58,-3.8,v),t=spl([[-3.8,.80,.82],[-3,.84,.86],[-1.5,.92,.95],[0,.98,1.02],[.35,.80,.84],[.5,.5,.52],[.58,.02,.02]],y),sx=se((u-.5)*TAU,t[0],t[1],2.2);return [sx[0],y,sx[1],u,v];},{wrap:true,orient:[0,-1.5,0]}),jacketM));
+    s.add(hmesh(grid(HRES?20:14,10,(u,v)=>{const y=lerpf(.58,-3.8,v),t=spl([[-3.8,.80,.82],[-3,.84,.86],[-1.5,.92,.95],[0,.98,1.02],[.35,.80,.84],[.5,.5,.52],[.58,.02,.02]],y),sx=se((u-.5)*TAU,t[0],t[1],2.2);return [sx[0],y,sx[1],u,v];},{wrap:true,orient:[0,-1.5,0]}),jacketM));
     const el=new THREE.Group();el.position.set(0,-3.8,0);s.add(el);
-    el.add(mesh(grid(HRES?20:14,8,(u,v)=>{const y=lerpf(.2,-3.4,v),t=spl([[-3.4,.66,.68],[-1.7,.74,.76],[-.5,.80,.82],[.2,.82,.84]],y),sx=se((u-.5)*TAU,t[0],t[1],2.2);return [sx[0],y,sx[1],u,v];},{wrap:true,orient:[0,-1.5,0]}),jacketM));
+    el.add(hmesh(grid(HRES?20:14,8,(u,v)=>{const y=lerpf(.2,-3.4,v),t=spl([[-3.4,.66,.68],[-1.7,.74,.76],[-.5,.80,.82],[.2,.82,.84]],y),sx=se((u-.5)*TAU,t[0],t[1],2.2);return [sx[0],y,sx[1],u,v];},{wrap:true,orient:[0,-1.5,0]}),jacketM));
     const cuff=grid(16,2,(u,v)=>{const y=lerpf(-3.15,-3.75,v),sx=se((u-.5)*TAU,.63,.65,2.2);return [sx[0],y,sx[1],u,v];},{wrap:true,orient:[0,-3.5,0]});
-    el.add(mesh(cuff,whiteM));
-    for(let i=0;i<3;i++){const b=mesh(new THREE.CylinderGeometry(.06,.06,.04,8),black,.0,-2.55-i*.2,0);b.position.x=.0;b.position.z=side*(.62);b.rotation.x=Math.PI/2;el.add(b);}
+    el.add(hmesh(cuff,whiteM));
+    for(let i=0;i<3;i++){const b=hmesh(new THREE.CylinderGeometry(.06,.06,.04,8),black,.0,-2.55-i*.2,0);b.position.x=.0;b.position.z=side*(.62);b.rotation.x=Math.PI/2;el.add(b);}
     const hand=new THREE.Group();hand.position.set(0,-3.7,0);el.add(hand);
-    hand.add(mesh(handGeo(side),SK));
+    hand.add(hmesh(handGeo(side),SK));
     s.userData.side=side;g.add(s);arms.push({sh:s,el,hand});
   }
   const wep=buildWeapons(arms[1].hand,.85,-Math.PI/2);wep[0].visible=true;
