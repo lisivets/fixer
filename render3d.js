@@ -46,7 +46,7 @@ function syncParts(){
   for(let i=k;i<poolK.length;i++)poolK[i].visible=false;
 }
 let camPitch=-.32,lookIdle=0,fpv=false;
-function carY(x,y){const t=tileAt(Math.floor(x/TS),Math.floor(y/TS));return hAt(x,y)+SW+(t===0?.35:0);} // .35 — полотно дороги над землёй
+function carY(x,y){const t=tileAt(Math.floor(x/TS),Math.floor(y/TS));return hAt(x,y)+SW+(t===0?.9:0);} // .9 — полотно дороги над землёй (RD.ASPH)
 function updateCam(){
   const car=P.car;
   if(mouse.dx||mouse.dy){lookIdle=0;}

@@ -3,7 +3,7 @@
 // Тайлы остаются для столкновений и навигации; здесь только визуальная геометрия и список зебр для симуляции.
 const R2PI=Math.PI*2;
 const RN={ready:false,zebras:[],stops:[],plates:[],cover:null,mats:null};
-const RD={CW:3.2,CURB_H:1.7,ASPH:.35,WALK:.18,R0:40,STEP:24};
+const RD={CW:3.2,CURB_H:1.7,ASPH:.9,WALK:.5,R0:40,STEP:24};
 const swWidth=w=>w>=128?64:34;           // ширина тротуара за бордюром (≈ 1–2 тайла)
 const eR=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
 function pLen(p){let L=0;for(let i=1;i<p.length;i++)L+=eR(p[i],p[i-1]);return L;}
