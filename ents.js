@@ -2,12 +2,34 @@
 // ===== Сущности =====
 const cars=[],peds=[],bullets=[],parts=[],picks=[];
 let shake=0,boomLight=0,boomX=0,boomY=0;
-const P={x:0,y:0,a:0,hp:100,armor:0,car:null,w:0,ammo:[Infinity,90,5],money:0,lives:5,heat:0,cd:0,dead:0,moved:0};
+const P={x:0,y:0,a:0,hp:100,armor:0,car:null,w:3,has:[],ammo:[],money:0,lives:5,heat:0,cd:0,dead:0,moved:0};
+// ===== Единая таблица оружия =====
+// kind: 'melee' — удар в конусе перед игроком (range — дальность, arc — полный угол конуса),
+//       'gun' — пуля (spd, life), 'rocket' — снаряд со взрывом (blast), 'flame' — струя огня в конусе.
+// rate — кадров между выстрелами/ударами, dmg — урон за выстрел/удар, start — боезапас в стартовом наборе, pack — прибавка с находки.
 const WEAPONS=[
-  {n:'ПИСТОЛЕТ',rate:18,dmg:25,spd:14,auto:false,snd:'shot'},
-  {n:'ПИСТОЛЕТ-ПУЛЕМЁТ',rate:5,dmg:12,spd:15,auto:true,snd:'smg'},
-  {n:'РАКЕТНИЦА',rate:55,dmg:0,spd:8,auto:false,snd:'rocket',rocket:true}
+  {id:'fist',   n:'КАСТЕТ',    kind:'melee', rate:18,dmg:24,range:22,arc:1.5,auto:false,snd:'hit',  start:Infinity,pack:0},
+  {id:'club',   n:'ДУБИНА',    kind:'melee', rate:30,dmg:42,range:30,arc:1.7,auto:false,snd:'hit',  start:Infinity,pack:0},
+  {id:'knife',  n:'НОЖ',       kind:'melee', rate:12,dmg:20,range:20,arc:1.0,auto:false,snd:'hit',  start:Infinity,pack:0},
+  {id:'pistol', n:'ПИСТОЛЕТ',  kind:'gun',   rate:18,dmg:25,spd:14,life:55,auto:false,snd:'shot',  start:60,pack:20},
+  {id:'smg',    n:'АВТОМАТ',   kind:'gun',   rate:5, dmg:12,spd:15,life:55,auto:true, snd:'smg',   start:90,pack:40},
+  {id:'bazooka',n:'БАЗУКА',    kind:'rocket',rate:60,dmg:0, spd:9, life:120,auto:false,snd:'rocket',start:5, pack:2,blast:{r:95,dmg:130}},
+  {id:'flame',  n:'ОГНЕМЁТ',   kind:'flame', rate:2, dmg:2.6,range:75,arc:.5,auto:true, snd:'flame', start:0, pack:200},
+  {id:'saw',    n:'БЕНЗОПИЛА', kind:'melee', rate:5, dmg:8, range:24,arc:1.3,auto:true, snd:'saw',   start:0, pack:160}
 ];
+// стартовый набор: кастет, пистолет, автомат, базука; после «задержания» — только кастет и пистолет
+function armPlayer(full){
+  P.has=WEAPONS.map(()=>false);P.ammo=WEAPONS.map(()=>0);
+  const give=(i,n)=>{P.has[i]=true;P.ammo[i]=n;};
+  give(0,Infinity);give(3,full?60:30);give(4,full?90:30);if(full)give(5,5);
+  P.w=3;
+}
+function giveWeapon(i){
+  const W=WEAPONS[i],first=!P.has[i];
+  P.has[i]=true;if(W.pack)P.ammo[i]+=W.pack;
+  if(first)P.w=i;
+  if(typeof pushMsg==='function')pushMsg('Подобрано: '+W.n,'#9fd49a');
+}
 const CT={
   sedan:{name:'СЕДАН 101',len:42,wid:20,hp:90,acc:.15,max:6.8,grip:.82,mass:1,cols:['#d8c9a0','#a8321e','#e8e4d8','#3f7a6a','#d0a43a','#5a7ea8']},
   sport:{name:'КУПЕ 112',len:43,wid:20,hp:85,acc:.22,max:9,grip:.85,mass:1,cols:['#e8e8e8','#9aa0a6','#233a6a','#7a1f2a']},
@@ -128,7 +150,7 @@ function drawPlayer(){
   g.fillStyle='#e0b090';g.fillRect(Math.sin(P.moved)*2.5-1,-7,3,3);g.fillRect(-Math.sin(P.moved)*2.5-1,4,3,3);
   g.beginPath();g.arc(0,0,3.6,0,7);g.fill();
   g.fillStyle='#2a1c10';g.beginPath();g.arc(-.5,0,2.9,0,7);g.fill();
-  g.fillStyle='#222';g.fillRect(3,3,P.w===0?7:10,2.5);
+  g.fillStyle='#222';g.fillRect(3,3,WEAPONS[P.w].kind==='melee'?4:10,2.5);
   g.restore();
 }
 function drawPick(k,tm){

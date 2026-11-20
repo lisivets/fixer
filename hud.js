@@ -74,7 +74,8 @@ function drawHUD(){
   }
   {let y=210*hs;for(let i=MSGS.length-1;i>=0;i--){const m=MSGS[i];m.t--;if(m.t<=0){MSGS.splice(i,1);continue;}ctx.globalAlpha=Math.min(1,m.t/40);txt(m.text,rx,y,18*hs,m.col,'right');y+=24*hs;}ctx.globalAlpha=1;}
   const W=WEAPONS[P.w],am=P.ammo[P.w];
-  txt(W.n+(am===Infinity?'':'  '+am),rx,160*hs,20*hs,'#9fd49a','right');
+  txt(W.n+(am===Infinity?'':'  '+Math.floor(am)),rx,160*hs,20*hs,'#9fd49a','right');
+  drawWeaponBar(hs);
   // миникарта
   const ms=MOBILE?Math.min(VH*.3,120):170*hs,mx=MOBILE?VW/2-ms/2:20*hs,my=MOBILE?8:VH-ms-20*hs,R=1500;
   g.save();rr(mx,my,ms,ms,8);g.clip();
@@ -90,6 +91,34 @@ function drawHUD(){
   g.restore();
   g.strokeStyle='rgba(255,255,255,.6)';g.lineWidth=2;rr(mx,my,ms,ms,8);g.stroke();
 }
+// ---- значки оружия (общие для HUD и находок над предметами) ----
+function drawWIcon(g,id,x,y,s,col){
+  g.save();g.translate(x,y);g.scale(s/32,s/32);g.fillStyle=col;g.strokeStyle=col;g.lineWidth=3;g.lineCap='round';g.lineJoin='round';
+  const R=(a,b,c,d)=>g.fillRect(a,b,c,d);
+  if(id==='fist'){for(let i=0;i<4;i++)R(-12+i*6.5,-6,5,12);R(-12,6,24,5);}
+  else if(id==='club'){g.beginPath();g.moveTo(-13,12);g.lineTo(9,-10);g.lineWidth=6;g.stroke();g.beginPath();g.moveTo(9,-10);g.lineTo(13,-14);g.lineWidth=10;g.stroke();}
+  else if(id==='knife'){g.beginPath();g.moveTo(-14,10);g.lineTo(6,-10);g.lineTo(12,-12);g.lineTo(8,-4);g.closePath();g.fill();R(-16,8,8,4);}
+  else if(id==='pistol'){R(-14,-8,26,8);R(-2,0,8,14);R(6,-2,6,3);}
+  else if(id==='smg'){R(-16,-7,32,8);R(-4,1,7,14);R(-12,1,5,6);R(12,-4,6,3);}
+  else if(id==='bazooka'){R(-17,-6,34,10);R(-4,4,6,11);R(12,-11,5,5);}
+  else if(id==='flame'){R(-16,-4,20,7);R(-16,3,10,11);g.beginPath();g.moveTo(4,-5);g.lineTo(17,-10);g.lineTo(13,-1);g.lineTo(17,8);g.lineTo(4,4);g.closePath();g.fill();}
+  else if(id==='saw'){R(-14,-6,16,14);R(2,-2,15,5);for(let i=0;i<5;i++){g.beginPath();g.moveTo(3+i*3,-2);g.lineTo(4.5+i*3,-6);g.lineTo(6+i*3,-2);g.fill();}}
+  else if(id==='armor'){g.beginPath();g.moveTo(0,-14);g.lineTo(13,-9);g.lineTo(11,4);g.lineTo(0,14);g.lineTo(-11,4);g.lineTo(-13,-9);g.closePath();g.fill();}
+  g.restore();
+}
+// полоса оружия: 8 ячеек с номером и значком; цифры 1–8 / колесо / Q E
+function drawWeaponBar(hs){
+  const n=WEAPONS.length,sz=Math.round(46*hs),gap=Math.round(6*hs),w0=n*sz+(n-1)*gap,x0=Math.round(VW/2-w0/2),y0=VH-sz-Math.round(14*hs)-(P.car?Math.round(34*hs):0);
+  for(let i=0;i<n;i++){
+    const x=x0+i*(sz+gap),has=P.has[i]&&P.ammo[i]>0,cur=i===P.w;
+    ctx.fillStyle=cur?'rgba(60,50,10,.85)':'rgba(10,12,14,.65)';rr(x,y0,sz,sz,6);ctx.fill();
+    ctx.strokeStyle=cur?'#f2d03a':has?'rgba(255,255,255,.45)':'rgba(255,255,255,.12)';ctx.lineWidth=cur?3:1.5;rr(x,y0,sz,sz,6);ctx.stroke();
+    if(has)drawWIcon(ctx,WEAPONS[i].id,x+sz/2,y0+sz/2-2,sz*.62,cur?'#f2d03a':'#e8e8e8');
+    else if(P.has[i])drawWIcon(ctx,WEAPONS[i].id,x+sz/2,y0+sz/2-2,sz*.62,'rgba(255,90,70,.5)');
+    ctx.font=`${Math.max(10,Math.round(11*hs))}px ${FONT}`;ctx.textAlign='left';ctx.fillStyle=has?'#cfd8c8':'rgba(255,255,255,.3)';ctx.fillText(String(i+1),x+4,y0+Math.max(11,12*hs));
+    const am=P.ammo[i];if(has&&am!==Infinity&&WEAPONS[i].kind!=='melee'||(has&&WEAPONS[i].id==='saw')){ctx.textAlign='right';ctx.fillText(String(Math.floor(am)),x+sz-4,y0+sz-4);}
+  }
+}
 function drawOverlays(){
   if(MOBILE&&VH>VW){ctx.fillStyle='rgba(0,0,0,.9)';ctx.fillRect(0,0,VW,VH);txt('Поверните телефон горизонтально',VW/2,VH/2,Math.min(VW/14,34),'#f2d03a','center');return;}
   const cx=VW/2,cy=VH/2,hs=HS();
@@ -100,7 +129,7 @@ function drawOverlays(){
   if(state==='title'){
     ctx.fillStyle='rgba(0,0,0,.62)';ctx.fillRect(0,0,VW,VH);
     txt('FIXER',cx,cy-150*hs,60*hs,'#f2d03a','center');
-    const L=MOBILE?['Левый палец — стик: ходьба и руль','Правый палец — вращать голову во все стороны · кнопка 1-е/3-е — вид','Кнопки: ОГОНЬ, ВХОД/ВЫХОД, ОРУЖИЕ, РУЧНИК, ГУДОК','','','',]:['WASD — ходьба и руль · Shift — бег','Мышь (клик захватывает курсор) — свободный поворот головы и камеры по горизонтали и вертикали','C — вид от первого лица / от третьего','Пробел / ЛКМ — огонь (в машине пробел — ручник)','F или Enter — сесть / выйти · H — сигнал','1, 2, 3 или Q / E — смена оружия','Собирай $, жги резину на лимузинах, не попадайся полиции','','Нажми любую клавишу, чтобы начать'];
+    const L=MOBILE?['Левый палец — стик: ходьба и руль','Правый палец — вращать голову во все стороны · кнопка 1-е/3-е — вид','Кнопки: ОГОНЬ, ВХОД/ВЫХОД, ОРУЖИЕ, РУЧНИК, ГУДОК','','','',]:['WASD — ходьба и руль · Shift — бег','Мышь (клик захватывает курсор) — свободный поворот головы и камеры по горизонтали и вертикали','C — вид от первого лица / от третьего','Пробел / ЛКМ — огонь (в машине пробел — ручник)','F или Enter — сесть / выйти · H — сигнал','1–8, колесо мыши или Q / E — смена оружия','Собирай $, жги резину на лимузинах, не попадайся полиции','','Нажми любую клавишу, чтобы начать'];
     if(MOBILE)L.push('Коснись экрана, чтобы начать');
     const gap=Math.max(34*hs,20);L.forEach((s,i)=>txt(s,cx,cy-80*hs+i*gap,i===L.length-1?28*hs:22*hs,i===L.length-1?'#9fd49a':'#e8e8e8','center'));
   }

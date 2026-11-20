@@ -187,15 +187,24 @@ function makeHuman(sp){
     const v=new THREE.Mesh(new THREE.CylinderGeometry(1.9,1.9,1.3,10,1,true,-Math.PI*.35,Math.PI*.7),plainM(0x1a2a30,.12,.3));v.position.set(0,2.3,0);v.rotation.y=-Math.PI/2;head.add(v);
     head.add(lm([R(-.35,.5,.6,.4),R(.4,1.5,1.45,.15),R(1.7,1.72,1.6)],NT,plainM(0x0a0b0a,.95)));
   }
-  // оружие
+  // оружие в руке: модели по индексам таблицы WEAPONS (0 кастет … 7 бензопила); видна текущая
   const wep={};
   if(sp.gun){
-    const mk=(w,h,d,col,x,y,z)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),MS({color:col,roughness:.4,metalness:.5}));m.position.set(x,y,z);return m;};
-    const w0=new THREE.Group();w0.add(mk(3.2,.9,.7,0x1a1a1a,1.6,-.9,0),mk(.9,1.8,.7,0x222222,.3,-1.4,0));
-    const w1=new THREE.Group();w1.add(mk(5.5,1.2,.8,0x181818,2.4,-.9,0),mk(.8,2.4,.7,0x111111,2.2,-2.3,0),mk(1,1.8,.7,0x222222,0,-1.4,0),mk(2.2,.5,.5,0x111111,5.2,-.7,0));
-    const w2=new THREE.Group();const tb=new THREE.Mesh(new THREE.CylinderGeometry(.8,.8,7,10),MS({color:0x5a6a4a,roughness:.5}));tb.rotation.z=Math.PI/2;tb.position.set(2,-.2,0);w2.add(tb,mk(.9,1.6,.7,0x222222,1,-1.3,0));
-    for(const [k,w] of [[0,w0],[1,w1],[2,w2]]){w.visible=false;arms[1].hand.add(w);wep[k]=w;}
-    wep[sp.gun===2?1:0].visible=true;
+    const mk=(w,h,d,col,x,y,z,met)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),MS({color:col,roughness:.4,metalness:met==null?.5:met}));m.position.set(x,y,z);return m;};
+    const cyl=(r0,r1,len,col,x,y,z,met)=>{const m=new THREE.Mesh(new THREE.CylinderGeometry(r0,r1,len,10),MS({color:col,roughness:.5,metalness:met==null?.3:met}));m.rotation.z=Math.PI/2;m.position.set(x,y,z);return m;};
+    const grp=(...o)=>{const g=new THREE.Group();g.add(...o);return g;};
+    const models=[
+      grp(mk(.7,.8,2.4,0x9a9ca0,.4,-.9,0,.8),mk(.5,.5,.5,0x6a6c70,.9,-.9,1.1,.8)),                                     // кастет
+      grp(cyl(.35,.65,6.4,0x5a3a20,2.9,-.9,0,0)),                                                                        // дубина
+      grp(mk(3.4,.22,.8,0xcfd2d6,2.2,-.9,0,.9),mk(1.4,.5,.6,0x24201c,.2,-.9,0,.2)),                                      // нож
+      grp(mk(3.2,.9,.7,0x1a1a1a,1.6,-.9,0),mk(.9,1.8,.7,0x222222,.3,-1.4,0)),                                            // пистолет
+      grp(mk(5.5,1.2,.8,0x181818,2.4,-.9,0),mk(.8,2.4,.7,0x111111,2.2,-2.3,0),mk(1,1.8,.7,0x222222,0,-1.4,0),mk(2.2,.5,.5,0x111111,5.2,-.7,0)), // автомат
+      grp(cyl(1.1,1.1,9,0x5a6a4a,3,-.6,0),mk(.9,1.6,.7,0x222222,1,-1.8,0),mk(.8,.8,.5,0x181818,5.2,.8,0)),               // базука
+      grp(cyl(.55,.55,6.5,0x4a4d52,3,-.8,0),cyl(1.2,1.2,3.2,0xb02020,-.4,-2.2,0),mk(1.2,.9,1,0x222222,6.2,-.8,0),mk(.8,1.6,.7,0x222222,1.2,-1.8,0)), // огнемёт
+      grp(mk(3.2,2,1.4,0xd8782a,1.6,-1,0),mk(6,.35,1.7,0xcfd2d6,5.6,-1.1,0,.9),mk(1,1.6,.7,0x222222,.2,-1.9,0))          // бензопила
+    ];
+    models.forEach((w,k)=>{w.visible=false;arms[1].hand.add(w);wep[k]=w;});
+    wep[sp.gun===2?4:3].visible=true;
   }
   if(sp.shield){const s=new THREE.Mesh(new THREE.BoxGeometry(.5,9,5.5),MS({color:0x20303a,transparent:true,opacity:.55,roughness:.1,metalness:.3}));s.position.set(3.3,9.5,-1.2);g.add(s);}
   root.scale.set(sp.w||1,sp.h||1,sp.w||1);

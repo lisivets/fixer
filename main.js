@@ -1,18 +1,19 @@
 'use strict';
 // ===== Игрок, цикл, запуск =====
 function resetPlayer(full){
-  Object.assign(P,{x:START.x,y:START.y,a:0,hp:100,armor:0,car:null,heat:0,dead:0,cd:0,w:0,ammo:[Infinity,full?90:30,full?5:0]});
+  Object.assign(P,{x:START.x,y:START.y,a:0,hp:100,armor:0,car:null,heat:0,dead:0,cd:0});armPlayer(full);
   for(let i=cars.length-1;i>=0;i--)if(cars[i].ai==='cop')cars.splice(i,1);
   for(let i=peds.length-1;i>=0;i--)if(peds[i].kind==='cop')peds.splice(i,1);
   bullets.length=0;
 }
 function newGame(){
   cars.length=peds.length=bullets.length=parts.length=picks.length=0;
-  cam3.far=LITE?2500:3600;cam3.updateProjectionMatrix();genMap();renderMap();build3D();camYaw=0;camPitch=-.32;P.money=0;P.lives=5;over=false;resetPlayer(true);
+  cam3.far=LITE?2500:3600;cam3.updateProjectionMatrix();genMap();renderMap();build3D();buildAlleys();camYaw=0;camPitch=-.32;P.money=0;P.lives=5;over=false;resetPlayer(true);
   const c=new Car('sport',START.x+46,START.y+4,0);cars.push(c);
   for(let i=0;i<(LITE?24:40);i++){spawnTraffic();}
   for(let i=0;i<(LITE?34:60);i++)spawnPed();
   for(let i=0;i<24;i++)spawnPick();
+  for(let i=0;i<CACHE_N;i++)spawnCache(false);
   cam.x=P.x;cam.y=P.y;
 }
 const heliAlive=()=>typeof heli!=='undefined'&&!!heli;
@@ -51,14 +52,11 @@ function playerUpdate(){
     return;
   }
   if(P.hp<=0){killPlayer();return;}
-  if(pressed.Digit1)P.w=0;
-  if(pressed.Digit2&&P.ammo[1]>0)P.w=1;
-  if(pressed.Digit3&&P.ammo[2]>0)P.w=2;
-  if(pressed.KeyQ||pressed.KeyE){
-    const d=pressed.KeyE?1:2;
-    for(let i=1;i<=3;i++){const n=(P.w+d*i)%3;if(n===0||P.ammo[n]>0){P.w=n;break;}}
-  }
-  if(P.ammo[P.w]<=0)P.w=0;
+  // выбор оружия: цифры 1–8, колесо мыши, Q/E (на телефоне — кнопка «Оружие»)
+  for(let i=0;i<WEAPONS.length;i++)if(pressed['Digit'+(i+1)]&&P.has[i]&&P.ammo[i]>0)P.w=i;
+  const cyc=mouse.wheel?(mouse.wheel>0?1:-1):pressed.KeyE?1:pressed.KeyQ?-1:0;
+  if(cyc)for(let i=1;i<=WEAPONS.length;i++){const n=((P.w+cyc*i)%WEAPONS.length+WEAPONS.length)%WEAPONS.length;if(P.has[n]&&P.ammo[n]>0){P.w=n;break;}}
+  if(!P.has[P.w]||P.ammo[P.w]<=0)P.w=0;   // кончились патроны или топливо — кастет
   P.cd--;
   const up=keys.ArrowUp||keys.KeyW,dn=keys.ArrowDown||keys.KeyS,lf=keys.ArrowLeft||keys.KeyA,rt=keys.ArrowRight||keys.KeyD;
   if(P.car){
@@ -81,10 +79,15 @@ function playerUpdate(){
     const W=WEAPONS[P.w];
     const want=W.auto?(keys.Space||mouse.down):(pressed.Space||mouse.click);
     if(want&&P.cd<=0&&P.ammo[P.w]>0){
-      P.a=camYaw;P.cd=W.rate;P.ammo[P.w]--;snd(W.snd);crime('shoot',P.x,P.y,.15,1);
-      fireBullet(P.x+Math.cos(P.a)*11,P.y+Math.sin(P.a)*11,P.a+(W.auto?rnd(-.05,.05):0),P.w,'player');
-      alertPeds(P.x,P.y,320);shake=Math.max(shake,W.rocket?5:1);
-      part(P.x+Math.cos(P.a)*13,P.y+Math.sin(P.a)*13,Math.cos(P.a)*2,Math.sin(P.a)*2,6,2,'255,220,120','k');
+      P.a=camYaw;P.cd=W.rate;P.ammo[P.w]--;snd(W.snd);
+      if(W.kind==='melee')meleeAttack(W);
+      else if(W.kind==='flame'){flameAttack(W);crime('shoot',P.x,P.y,.15,1);alertPeds(P.x,P.y,260);}
+      else{
+        crime('shoot',P.x,P.y,.15,1);
+        fireBullet(P.x+Math.cos(P.a)*11,P.y+Math.sin(P.a)*11,P.a+(W.auto?rnd(-.05,.05):0),P.w,'player');
+        alertPeds(P.x,P.y,320);shake=Math.max(shake,W.kind==='rocket'?5:1);
+        part(P.x+Math.cos(P.a)*13,P.y+Math.sin(P.a)*13,Math.cos(P.a)*2,Math.sin(P.a)*2,6,2,'255,220,120','k');
+      }
     }
   }
   if(pressed.KeyF||pressed.Enter)toggleCar();
@@ -95,12 +98,14 @@ function updatePicks(){
     const k=picks[i];k.t--;
     const d=Math.hypot(k.x-ref.x,k.y-ref.y);
     if(!P.dead&&d<r){
+      if(P.car&&k.cache)continue;                      // находки из закоулков подбираются только пешком
       if(k.type==='cash')P.money+=k.v;
-      else if(k.type==='ammo'){P.ammo[1]+=40;P.ammo[2]+=2;}
+      else if(k.type==='ammo'){for(let w=3;w<WEAPONS.length;w++)if(P.has[w]&&WEAPONS[w].pack)P.ammo[w]+=Math.ceil(WEAPONS[w].pack*(w===6||w===7?.5:1));}
       else if(k.type==='hp')P.hp=Math.min(100,P.hp+50);
+      else if(k.type==='weapon')giveWeapon(k.w);
       else P.armor=100;
       snd('pickup');picks.splice(i,1);
-    }else if(k.t<=0||d>2200)picks.splice(i,1);
+    }else if(k.t<=0||(d>2200&&!k.cache))picks.splice(i,1);
   }
 }
 function manage(){
@@ -120,7 +125,8 @@ function manage(){
   if(traffic<(LITE?20:30))spawnTraffic();
   if(L===0&&copCars().length<2){spawnCop();const k=cars[cars.length-1];if(k&&k.type==='cop'){k.ai='traffic';}}
   if(civ<(LITE?32:55))spawnPed();
-  if(picks.length<24)spawnPick();
+  if(picks.reduce((n,k)=>n+(k.cache?0:1),0)<24)spawnPick();
+  if(tm%120===0&&cacheCount()<CACHE_N)spawnCache(false);
   if(L>0&&cops<Math.min(L+1,5))spawnCop();
   if(L>=2&&!P.car&&fcops<Math.min(L,4))spawnPed('cop');
   // затухание розыска
@@ -144,7 +150,7 @@ function step(playing){
   shake*=.9;if(shake<.2)shake=0;
   for(const k in pressed)delete pressed[k];
   if(pressed.KeyC||pressed.KeyV)fpv=!fpv;
-  mouse.click=false;
+  mouse.click=false;mouse.wheel=0;
 }
 let last=0,acc=0;
 function frame(now){

@@ -55,13 +55,45 @@ function spawnPed(kind){
     peds.push(new Ped(x,y,kind));return;
   }
 }
+// ---- закоулки: места для находок (оружие, броня) ----
+const ALLEY=[];
+function buildAlleys(){
+  ALLEY.length=0;
+  const near=(tx,ty,r,f)=>{for(let j=-r;j<=r;j++)for(let i=-r;i<=r;i++)if(f(tileAt(tx+i,ty+j)))return true;return false;};
+  for(let ty=2;ty<MH-2;ty++)for(let tx=2;tx<MW-2;tx++){
+    if(T[ty*MW+tx]!==3)continue;                                                   // двор
+    if(![[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy])=>tileAt(tx+dx,ty+dy)===2))continue;   // у стены здания
+    if(near(tx,ty,2,t=>t===0||t===5))continue;                                      // далеко от дороги и воды: задний двор
+    ALLEY.push([(tx+.5)*TS,(ty+.5)*TS]);
+  }
+  // тупики графа: тайлы 1/3 у концов дорог
+  const deg=new Array(MAPDATA.G.n.length).fill(0);for(const e of MAPDATA.G.e){deg[e.a]++;deg[e.b]++;}
+  MAPDATA.G.n.forEach((n,i)=>{if(deg[i]!==1)return;for(let k=0;k<8;k++){const a=rnd(0,6.28),x=n[0]+Math.cos(a)*rnd(60,110),y=n[1]+Math.sin(a)*rnd(60,110),t=tileAt(Math.floor(x/TS),Math.floor(y/TS));if(t===1||t===3){ALLEY.push([x,y]);break;}}});
+}
+const CACHE_N=70,CACHE_W=[[1,.16],[2,.16],[6,.1],[7,.1],[5,.1],[3,.08],[4,.08]]; // вид оружия и вес выпадения; остальное — броня
+function cacheKind(){
+  const r=Math.random();let s=0;
+  for(const [w,p] of CACHE_W){s+=p;if(r<s)return {type:'weapon',w};}
+  return {type:'armor'};
+}
+const cacheCount=()=>picks.reduce((n,k)=>n+(k.cache?1:0),0);
+function spawnCache(near){
+  if(!ALLEY.length)return false;
+  for(let i=0;i<20;i++){
+    const [x,y]=pick(ALLEY);
+    if(near){const d=Math.hypot(x-P.x,y-P.y);if(d<350||d>2400)continue;}
+    if(picks.some(k=>k.cache&&Math.hypot(k.x-x,k.y-y)<60))continue;
+    picks.push(Object.assign({x,y,v:0,t:99999,cache:true},cacheKind()));return true;
+  }
+  return false;
+}
 function spawnPick(){
   for(let i=0;i<12;i++){
     const a=rnd(0,6.28),d=rnd(250,1300);
     const x=P.x+Math.cos(a)*d,y=P.y+Math.sin(a)*d;
     if(tileAt(Math.floor(x/TS),Math.floor(y/TS))!==1)continue;
     const r=Math.random();
-    picks.push({x,y,type:r<.55?'cash':r<.7?'ammo':r<.85?'hp':'armor',v:ri(50,250),t:99999});return;
+    picks.push({x,y,type:r<.6?'cash':r<.82?'ammo':'hp',v:ri(50,250),t:99999});return;
   }
 }
 
@@ -274,7 +306,36 @@ function alertPeds(x,y,r){
 // --- Пули ---
 function fireBullet(x,y,a,w,owner){
   const W=WEAPONS[w];
-  bullets.push({x,y,vx:Math.cos(a)*W.spd,vy:Math.sin(a)*W.spd,l:W.rocket?110:55,dmg:W.dmg,owner,rocket:!!W.rocket});
+  bullets.push({x,y,vx:Math.cos(a)*W.spd,vy:Math.sin(a)*W.spd,l:W.life,dmg:W.dmg,owner,rocket:W.kind==='rocket',blast:W.blast});
+}
+// ближний бой: удар в конусе перед игроком (кастет, дубина, нож, бензопила)
+function meleeAttack(W){
+  const half=W.arc/2;let hit=0;
+  for(const p of peds){
+    if(p.dead)continue;
+    const dx=p.x-P.x,dy=p.y-P.y,d=Math.hypot(dx,dy);if(d>W.range+6)continue;
+    if(d>10&&Math.abs(angDiff(P.a,Math.atan2(dy,dx)))>half)continue;
+    hit++;p.hp-=W.dmg;
+    for(let i=0;i<3;i++)part(p.x,p.y,rnd(-1.5,1.5),rnd(-1.5,1.5),rnd(8,16),2,'170,20,20','k');
+    if(p.hp<=0)killPed(p,'player');else{p.flee=140;p.a=Math.atan2(dy,dx);}
+  }
+  const tx=P.x+Math.cos(P.a)*W.range*.7,ty=P.y+Math.sin(P.a)*W.range*.7;
+  part(tx,ty,Math.cos(P.a)*1.5,Math.sin(P.a)*1.5,6,2,W.id==='saw'?'255,220,120':'230,230,230','k');
+  if(hit){crime('assault',P.x,P.y,.2,1);alertPeds(P.x,P.y,160);shake=Math.max(shake,W.id==='saw'?2:1);}
+}
+// огнемёт: струя огня и урон по площади (конус)
+function flameAttack(W){
+  for(let i=0;i<4;i++){const a=P.a+rnd(-W.arc/2,W.arc/2),s=rnd(2.2,4.2);part(P.x+Math.cos(P.a)*12,P.y+Math.sin(P.a)*12,Math.cos(a)*s,Math.sin(a)*s,rnd(14,26),rnd(5,10),'255,150,40','f');}
+  if(tm%6===0)part(P.x+Math.cos(P.a)*20,P.y+Math.sin(P.a)*20,Math.cos(P.a)*1.5,Math.sin(P.a)*1.5,rnd(30,50),rnd(8,14),'40,40,40','s');
+  const half=W.arc/2;
+  for(const p of peds){
+    if(p.dead)continue;const dx=p.x-P.x,dy=p.y-P.y,d=Math.hypot(dx,dy);if(d>W.range||(d>10&&Math.abs(angDiff(P.a,Math.atan2(dy,dx)))>half))continue;
+    p.hp-=W.dmg*3;if(p.hp<=0)killPed(p,'player');else{p.flee=140;}
+  }
+  for(const c of cars){
+    if(c.dead||c===P.car)continue;const dx=c.x-P.x,dy=c.y-P.y,d=Math.hypot(dx,dy)-c.len/2;if(d>W.range||(d>10&&Math.abs(angDiff(P.a,Math.atan2(dy,dx)))>half+.25))continue;
+    c.damage(W.dmg*.9,'player');
+  }
 }
 function updateBullets(tm){
   for(const b of bullets){
@@ -304,7 +365,7 @@ function updateBullets(tm){
     }
     b.l--;
     if(b.l<=0)b.dead=true;
-    if(b.dead&&b.rocket)explode(b.x,b.y,75,95,b.owner);
+    if(b.dead&&b.rocket)explode(b.x,b.y,b.blast?b.blast.r:75,b.blast?b.blast.dmg:95,b.owner);
   }
   for(let i=bullets.length-1;i>=0;i--)if(bullets[i].dead)bullets.splice(i,1);
 }

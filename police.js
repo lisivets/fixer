@@ -125,7 +125,7 @@ function arrest(){
   }
 }
 function finishArrest(){
-  resetPlayer(false);P.ammo[1]=Math.min(P.ammo[1],0);P.ammo[2]=0;P.w=0;
+  resetPlayer(false);P.has[4]=false;P.ammo[4]=0;P.w=3;   // после задержания автомат и всё прочее отобрано: остаются кастет и пистолет
   for(let i=peds.length-1;i>=0;i--)if(peds[i].kind==='cop')peds.splice(i,1);
   for(const c of cars)if(c.type==='cop'){c.ai='traffic';c.siren=false;}
   calls=[];heli=null;P.heat=0;P.seen=false;camYaw=-1.57;

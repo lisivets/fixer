@@ -19,7 +19,8 @@ const keys={},pressed={};
 addEventListener('keydown',e=>{if(!keys[e.code])pressed[e.code]=true;keys[e.code]=true;if(e.code.startsWith('Arrow')||e.code==='Space')e.preventDefault();});
 addEventListener('keyup',e=>{keys[e.code]=false;});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false;});
-const mouse={x:0,y:0,down:false,click:false,dx:0,dy:0};
+const mouse={x:0,y:0,down:false,click:false,dx:0,dy:0,wheel:0};
+addEventListener('wheel',e=>{mouse.wheel+=Math.sign(e.deltaY);},{passive:true});
 addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY;mouse.dx+=e.movementX||0;mouse.dy+=e.movementY||0;});
 addEventListener('mousedown',()=>{mouse.down=true;mouse.click=true;});
 addEventListener('mouseup',()=>{mouse.down=false;});
@@ -37,7 +38,7 @@ function snd(kind){try{
     g.gain.setValueAtTime(.07,t);g.gain.exponentialRampToValueAtTime(.001,t+(kind==='honk'?.35:.15));
     o.connect(g).connect(AC.destination);o.start(t);o.stop(t+.4);return;
   }
-  const P={shot:[1800,.08,.22],smg:[2400,.05,.15],boom:[260,.9,.6],hit:[500,.12,.3],rocket:[700,.3,.3]}[kind];
+  const P={shot:[1800,.08,.22],smg:[2400,.05,.15],boom:[260,.9,.6],hit:[500,.12,.3],rocket:[700,.3,.3],flame:[1500,.07,.1],saw:[3200,.06,.12]}[kind];
   const s=AC.createBufferSource();s.buffer=NB;
   const f=AC.createBiquadFilter();f.type='lowpass';f.frequency.value=P[0];
   const g=AC.createGain();g.gain.setValueAtTime(P[2],t);g.gain.exponentialRampToValueAtTime(.001,t+P[1]);

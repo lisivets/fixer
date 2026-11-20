@@ -6,8 +6,25 @@ const lam=c=>new THREE.MeshLambertMaterial({color:c});
 const bas=c=>new THREE.MeshBasicMaterial({color:c});
 const box=(w,h,d,m,x,y,z,sh)=>{const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);if(sh)o.castShadow=true;return o;};
 
-const pickGeo=new THREE.BoxGeometry(9,9,9),pickCol={cash:0x3fbf55,ammo:0xd0a020,hp:0xf0f0f0,armor:0x3a6af0};
-function makePick(k){const m=new THREE.Mesh(pickGeo,bas(pickCol[k.type]));m.castShadow=false;return m;}
+const pickGeo=new THREE.BoxGeometry(9,9,9),pickCol={cash:0x3fbf55,ammo:0xd0a020,hp:0xf0f0f0,armor:0x3a6af0,weapon:0xd06a20};
+const iconTex={};
+function pickIcon(k){ // значок над находкой (оружие / броня)
+  const id=k.type==='armor'?'armor':WEAPONS[k.w].id;
+  if(!iconTex[id]){
+    const c=document.createElement('canvas');c.width=c.height=96;const g=c.getContext('2d');
+    g.fillStyle='rgba(12,14,16,.85)';g.beginPath();g.arc(48,48,44,0,7);g.fill();
+    g.strokeStyle=k.type==='armor'?'#6a9aff':'#f2a040';g.lineWidth=5;g.stroke();
+    drawWIcon(g,id,48,48,52,k.type==='armor'?'#9fc0ff':'#ffd9a0');
+    iconTex[id]=new THREE.CanvasTexture(c);
+  }
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:iconTex[id],transparent:true,depthWrite:false,fog:false}));
+  s.scale.set(17,17,1);s.position.y=24;return s;
+}
+function makePick(k){
+  const m=new THREE.Mesh(pickGeo,bas(pickCol[k.type]));m.castShadow=false;
+  if(k.cache){m.scale.set(.8,.8,.8);m.add(pickIcon(k));}
+  return m;
+}
 const bulGeo=new THREE.BoxGeometry(9,1.6,1.6),bulM=bas(0xffe9a0),rocM=lam(0xbbbbbb);
 function makeBul(b){return b.rocket?box(12,3.5,3.5,rocM,0,0,0):new THREE.Mesh(bulGeo,bulM);}
 
