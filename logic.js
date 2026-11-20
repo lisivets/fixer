@@ -30,6 +30,9 @@ function laneSpawn(maxTry){
     const dd=Math.hypot(p.x-P.x,p.y-P.y);
     if(dd<minSpawn()||dd>minSpawn()+620)continue;
     if(tileAt(Math.floor(p.x/TS),Math.floor(p.y/TS))!==0)continue;
+    if(s<(d>0?e.sa:e.sb)+70||s>e.L-(d>0?e.sb:e.sa)-70)continue;   // не появляться у перекрёстков и зебр
+    {const sd=e.stopD&&e.stopD[d>0?1:0];            // не появляться на подходе к светофору, если не горит зелёный с запасом
+     if(sd!=null){const dl=(e.L-sd)-s;if(dl>-30&&dl<170){const st=tlState(d>0?e.b:e.a,ei,d>0?1:0);if(!st||st.c!=='g'||st.left<240)continue;}}}
     if(cars.some(c=>Math.hypot(c.x-p.x,c.y-p.y)<80))continue;
     return {x:p.x,y:p.y,a:Math.atan2(p.hy,p.hx),edge:ei,ed:d,s};
   }
@@ -102,14 +105,17 @@ function aiTraffic(c){
   if(!GADJ)initGraph();
   const E=MAPDATA.G.e;let e=E[c.edge];
   if(!e){c.off=9999;return;}
-  let lp=lanePt(e,c.ed,c.s);
-  while(c.s<e.L&&Math.hypot(c.x-lp.x,c.y-lp.y)<34){c.s+=14;lp=lanePt(e,c.ed,c.s);}
+  { // прогресс по ребру — по ближайшей точке полосы впереди (иначе машина, въехавшая далеко от начала полосы, ходит по кругу)
+    let best=c.s,bd=1e9;
+    for(let s=c.s;s<=Math.min(e.L,c.s+170);s+=8){const q=lanePt(e,c.ed,s),d=Math.hypot(c.x-q.x,c.y-q.y);if(d<bd){bd=d;best=s;}}
+    c.s=best;
+  }
   // следующее ребро выбирается заранее (нужно, чтобы уступить пешеходам на зебре выезда)
   const nk=c.edge+','+c.ed;
   if(c.nxk!==nk){const node=c.ed>0?e.b:e.a,opts=GADJ[node].filter(([i,d])=>!(i===c.edge&&d===-c.ed));c.nxt=opts.length?pick(opts):[c.edge,-c.ed];c.nxk=nk;}
   if(c.s>=e.L-2){ // конец ребра: на перекрёстке едем по выбранному
     const ch=c.nxt;
-    c.edge=ch[0];c.ed=ch[1];c.s=0;e=E[c.edge];lp=lanePt(e,c.ed,18);
+    c.edge=ch[0];c.ed=ch[1];c.s=0;e=E[c.edge];
   }
   const tgt=lanePt(e,c.ed,Math.min(e.L,c.s+46));
   if(tileAt(Math.floor(c.x/TS),Math.floor(c.y/TS))!==0){c.off++;}else c.off=0;
@@ -120,31 +126,54 @@ function aiTraffic(c){
   if(c.push>0)c.push--;
   const g=leadGap(c,220,c.push>0);
   if(g.d<1e8)vd=Math.min(vd,clamp(g.v+(g.d-8)*.085,0,maxV));
-  // красный и жёлтый (если успеваем остановиться) — остановка перед стоп-линией
   const L=lightAhead(c,c.edge);
   let atLight=false;
   // на зебре выезда стоит пешеход: не въезжаем на перекрёсток, ждём у стоп-линии
   if(L&&L.d>-8&&c.nxt&&c.nxk===c.edge+','+c.ed){
     const zi=exitZebra(c.nxt);if(zi>=0&&RN.zebras[zi].occ>0){vd=Math.min(vd,clamp((L.d-6)*.085,0,maxV));atLight=L.d<60;}
   }
-  // уже на перекрёстке: не выезжать на зебру, где стоит пешеход
+  // уже на перекрёстке (в том числе уже на зебре): не выезжать вперёд, пока на ней пешеход (путь до неё — вдоль выезжающей дороги, работает и при повороте)
   if((!L||L.d<=-8)&&c.nxt&&c.nxk===c.edge+','+c.ed){
     const zi=exitZebra(c.nxt);
-    if(zi>=0&&RN.zebras[zi].occ>0){ // путь до зебры считаем вдоль выезжающей дороги (z.rx,z.ry — от перекрёстка): так работает и при повороте
-      const z=RN.zebras[zi],sc=(c.x-z.x)*z.rx+(c.y-z.y)*z.ry,gap=-sc-z.wid/2-c.len/2;
-      if(gap>-6&&gap<260)vd=Math.min(vd,clamp((gap-6)*.085,0,maxV));
+    if(zi>=0&&RN.zebras[zi].occ>0){const z=RN.zebras[zi],sc=(c.x-z.x)*z.rx+(c.y-z.y)*z.ry,gap=-sc-z.wid/2-c.len/2;
+      if(gap>-(c.len+8)&&gap<260)vd=Math.min(vd,clamp((gap-6)*.085,0,maxV));}
+  }
+  // светофор: решение по расстоянию до стоп-линии. Красный — встаём, жёлтый — встаём, если не успеваем проскочить до красного
+  // и ещё можем остановиться (аварийное торможение 3·v+3). Если и то и другое невозможно — остановка уже невозможна, едем дальше.
+  let bk=0;
+  if(L&&L.d>-12&&L.c!=='g'){
+    const reach=vf>.3&&L.d/vf<L.left*.9,hardD=3*Math.max(vf,0)+3;
+    if(L.c==='r'||(!reach&&L.d>hardD)){
+      vd=Math.min(vd,clamp((L.d-14)*.085,0,maxV));atLight=L.d<70;      // встаём за ~10 ед. до линии: запас на толчок
+      bk=clamp(1-vf/Math.max(L.d-10,1.5),.45,.9);   // тормозим так, чтобы встать ровно перед линией
     }
   }
-  if(L&&L.d>-8&&L.c!=='g'){
-    const canStop=L.d>9*Math.max(vf,0)+8,reach=vf>.5&&L.d/vf<L.left;   // на жёлтом едем, только если успеваем до красного
-    if(L.c==='r'||(canStop&&!reach)){vd=Math.min(vd,clamp((L.d-6)*.085,0,maxV));atLight=L.d<60;}
+  // не въезжать в забитый перекрёсток (если очередь не рассасывается слишком долго — едем, иначе затор навсегда)
+  if(L&&L.d>-12&&c.nxt&&c.nxk===c.edge+','+c.ed){
+    const node=c.ed>0?E[c.edge].b:E[c.edge].a;
+    if(L.c!=='g'||true){
+      if(junctionBlocked(c,node,c.nxt)||exitRoomBlocked(c,c.nxt)){c.jw=(c.jw||0)+1;if(c.jw<900){vd=Math.min(vd,clamp((L.d-6)*.085,0,maxV));atLight=L.d<70;if(vf>.3&&9*vf+6>L.d)bk=Math.min(bk||.9,clamp(1-vf/Math.max(L.d-3,1.2),.45,.9));}}
+      else c.jw=0;
+    }
+  }
+  // зебра: не въезжать на неё, если за ней нет места для всей машины (иначе встанем на переходе)
+  if(g.d<1e8&&g.v<1){
+    const tryZ=(zi,dir)=>{
+      if(zi===undefined||zi<0)return;const z=RN.zebras[zi];
+      const sc=(c.x-z.x)*z.rx+(c.y-z.y)*z.ry,near=(dir>0?-sc:sc)-z.wid/2-c.len/2;       // от бампера до ближней кромки
+      if(near<-2||near>200)return;
+      if(g.d<near+z.wid+6+c.len+8)vd=Math.min(vd,clamp((near-6)*.085,0,maxV));
+    };
+    const arr=c.ed>0?1:0;tryZ(RN.zmap&&RN.zmap.get(c.edge*2+arr),-1);   // зебра подъезда: r направлен от перекрёстка, до неё sc>0
+    if(c.nxt)tryZ(exitZebra(c.nxt),1);
   }
   // затор не на светофоре: через время подтолкнуть, игнорируя машины впереди
-  const gapBlock=g.d<14&&!atLight;
+  const redAhead=L&&L.c==='r'&&L.d<900;        // очередь у красного светофора — не затор, подталкивать нельзя
+  const gapBlock=g.d<14&&!atLight&&!redAhead;
   c.blocked=gapBlock&&vf<.3?c.blocked+1:0;
   if(c.blocked===150&&Math.random()<.5)snd('honk');
   if(c.blocked>700){c.push=120;c.blocked=0;}
-  if(vf>vd+.1||(vd<.2&&vf>.1))c.drive(0,str,true,false);
+  if(vf>vd+.1||(vd<.3&&vf>.02))c.drive(0,str,true,false,bk);   // у линии тормозим до полной остановки, ползти нельзя
   else c.drive(vf<vd?clamp((vd-vf)/1.2,.2,1):0,str,false,false);
 }
 function aiCop(c){

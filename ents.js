@@ -48,13 +48,13 @@ class Car{
     this.roof=shade(this.col,1.18);
   }
   get speed(){return Math.hypot(this.vx,this.vy);}
-  drive(thr,str,brake,hb){
+  drive(thr,str,brake,hb,bk){  // bk — коэффициент торможения за кадр (по умолчанию .9; меньше — резче)
     const t=this.t;let fx=Math.cos(this.a),fy=Math.sin(this.a);
     let vf=this.vx*fx+this.vy*fy,vl=-this.vx*fy+this.vy*fx;
     if(thr>0){if(vf<t.max)vf+=t.acc*thr;}
     else if(thr<0){vf+=vf>.3?-t.acc*1.7:-t.acc*.6;if(vf<-t.max*.45)vf=-t.max*.45;}
     this.braking=!!brake||(thr<0&&vf>.3);
-    if(brake)vf*=.9;
+    if(brake)vf*=bk||.9;
     vf*=.985;vl*=hb?.965:t.grip;
     const sp=clamp(Math.abs(vf)/3,0,1);
     this.a+=str*.055*sp*(vf<0?-1:1)*(hb?1.5:1);

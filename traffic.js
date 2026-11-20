@@ -114,10 +114,46 @@ function leadGap(c,range,ignoreCars){
   }
   return best;
 }
+// перекрёсток (или выезд за ним) забит: впереди стоят машины — на перекрёсток не въезжаем, чтобы не встать посреди него или на зебре
+function junctionBlocked(c,node,ch){
+  const ctl=TL.byNode.get(node);if(!ctl)return false;
+  const G=MAPDATA.G.e;
+  for(const o of cars){
+    if(o===c||o.dead||o.speed>.6||o.edge===undefined)continue;
+    if(Math.hypot(o.x-ctl.n[0],o.y-ctl.n[1])<150){          // стоит в самом перекрёстке уже после своей стоп-линии
+      const Lo=lightAhead(o,o.edge);if(!Lo||Lo.d<-8)return true;
+    }
+    if(ch&&o.edge===ch[0]&&o.ed===ch[1]){                      // хвост очереди сразу за перекрёстком на выезде
+      const e2=G[ch[0]],from=ch[1]>0?o.s:e2.L-o.s;if(from<120)return true;   // o.s — прогресс по направлению ed
+    }
+  }
+  return false;
+}
+// на выезде нет места для всей машины за зеброй выезда (дальний светофор красный или очередь): не выезжаем, иначе встанем на переходе
+function exitRoomBlocked(c,ch){
+  const e2=MAPDATA.G.e[ch[0]];if(!e2)return false;
+  const dep=ch[1]>0?0:1,arr=1-dep,zc=(dep?e2.sb:e2.sa)+22+3;   // дальняя кромка зебры выезда, расстояние от конца ребра
+  let lim=1e9;
+  const sdA=e2.stopD&&e2.stopD[arr];
+  if(sdA!=null){const st=tlState(arr?e2.b:e2.a,ch[0],arr);if(!st||st.c!=='g'||st.left<240)lim=Math.min(lim,(e2.L-sdA)-6);}
+  for(const o of cars){
+    if(o===c||o.dead||o.edge!==ch[0]||o.ed!==ch[1]||o.speed>.8)continue;
+    lim=Math.min(lim,(o.s-17)-o.len/2-6);                         // o.s — путь от начала движения по ребру
+  }
+  return lim<zc+c.len;
+}
 // стоп-линия впереди: {d: расстояние от бампера до линии, c: сигнал}
 function lightAhead(c,ei){
-  const e=MAPDATA.G.e[ei],endIdx=c.ed>0?1:0,sd=e.stopD&&e.stopD[endIdx];if(sd==null)return null;
-  const st=tlState(endIdx?e.b:e.a,ei,endIdx);if(!st)return null;
+  const e=MAPDATA.G.e[ei];if(!e)return null;
+  const endIdx=c.ed>0?1:0;let sd=e.stopD&&e.stopD[endIdx];
+  const nd=endIdx?e.b:e.a;
+  if(sd==null){ // у узла-перекрёстка нет линии (короткое ребро): виртуальная линия без сигнала — для правил «не въезжать в забитый перекрёсток»
+    if(!TL.byNode.has(nd))return null;
+    sd=Math.min((endIdx?e.sb:e.sa)+27,Math.max(e.L-2,1));
+    const sp0=lanePt(e,c.ed,e.L-sd);
+    return {d:(sp0.x-c.x)*Math.cos(c.a)+(sp0.y-c.y)*Math.sin(c.a)-c.len/2,c:'g',left:999,virtual:true};
+  }
+  const st=tlState(nd,ei,endIdx);if(!st)return null;
   const sp=lanePt(e,c.ed,e.L-sd);
   return {d:(sp.x-c.x)*Math.cos(c.a)+(sp.y-c.y)*Math.sin(c.a)-c.len/2,c:st.c,left:st.left};
 }
