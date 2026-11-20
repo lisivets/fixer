@@ -211,4 +211,5 @@ function build3D(){
   initDecals();
   placeBuildings();
   buildTrees();buildProps();
+  initTraffic();buildLights();
 }

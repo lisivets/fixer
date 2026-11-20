@@ -297,6 +297,9 @@ function buildRoads(){
 function buildRoadMarkings(mk){
   const G=MAPDATA.G,ML=RD.ASPH+.25;
   RN.zebras=[];RN.stops=[];
+  // стоп-линия на расстоянии stopD от конца ребра у каждого перекрёстка (с светофором), даже если зебра не нарисована
+  for(const e of G.e)e.stopD=[null,null];
+  for(const pl of RN.plates){if(pl.list.length<3)continue;for(const o of pl.list){const e=G.e[o.ei],sd=(o.end===0?e.sa:e.sb)+27;if(sd<e.L-4)e.stopD[o.end]=sd;}}
   const twin=new Map();G.e.forEach((e,i)=>{const k=Math.min(e.a,e.b)+'-'+Math.max(e.a,e.b),b=twin.get(k);if(b===undefined||G.e[b].w<e.w)twin.set(k,i);});
   const band=(st,o,wid)=>{ // сплошная полоса вдоль станций
     for(let k=0;k<st.length-1;k++){

@@ -77,6 +77,7 @@ function explode(x,y,r,dmg,by){
     if(d<r+24){const f=1-d/(r+24),a=Math.atan2(c.y-y,c.x-x);c.damage(dmg*f,by);if(!c.dead){c.vx+=Math.cos(a)*5*f;c.vy+=Math.sin(a)*5*f;}}
   }
   for(const p of peds)if(!p.dead&&Math.hypot(p.x-x,p.y-y)<r)killPed(p,by);
+  alertPeds(x,y,r*3.2);
   if(typeof heliHit==='function')heliHit(x,y,r,by);
   if(!P.car&&!P.dead){const d=Math.hypot(P.x-x,P.y-y);if(d<r)hurtPlayer(dmg*(1-d/r)*.8);}
 }

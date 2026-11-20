@@ -33,9 +33,11 @@ function toggleCar(){
   let best=null,bd=1e9;
   for(const c of cars){if(c.dead||c.burn)continue;const d=Math.hypot(c.x-P.x,c.y-P.y);if(d<c.len/2+30&&d<bd){best=c;bd=d;}}
   if(!best)return;
-  if(best.ai){
+  if(best.ai&&best.speed>4.5){pushMsg('Машина едет слишком быстро','#ffcf5a');return;}
+  if(best.ai){ // водитель выходит: 35% — замирает на секунду-другую, остальные сразу бегут
     const dr=new Ped(best.x+Math.cos(best.a+1.57)*(best.wid/2+10),best.y+Math.sin(best.a+1.57)*(best.wid/2+10),'civ');
-    dr.flee=200;dr.a=best.a+1.57;peds.push(dr);
+    if(Math.random()<.35){dr.cow=70;dr.flee=0;}else dr.flee=200;
+    dr.a=best.a+1.57;peds.push(dr);
     crime(best.type==='cop'?'copcar':'theft',best.x,best.y,best.type==='cop'?1.2:.4,best.type==='cop'?2:1);
   }
   best.ai=null;P.car=best;best.vx*=.3;best.vy*=.3;camYaw=best.a;
@@ -134,7 +136,7 @@ function step(playing){
   for(const c of cars)updateCar(c,tm);
   carCars();
   if(P.car){P.x=P.car.x;P.y=P.car.y;P.a=P.car.a;}
-  updatePeds();policeUpdate();updateBullets(tm);updateParts();
+  trafficUpdate();updatePeds();playerCarHit();policeUpdate();updateBullets(tm);updateParts();
   if(playing)updatePicks();
   if(tm%20===0)manage();
   const lead=P.car?12:0,tx=P.x+(P.car?P.car.vx*lead:0),ty=P.y+(P.car?P.car.vy*lead:0);

@@ -65,35 +65,55 @@ function spawnPick(){
   }
 }
 
-// --- ИИ трафика ---
-function blockedAhead(c,range){
-  const cs=Math.cos(c.a),sn=Math.sin(c.a);
-  const test=(x,y,w)=>{const dx=x-c.x,dy=y-c.y,f=dx*cs+dy*sn,l=Math.abs(-dx*sn+dy*cs);return f>c.len/2&&f<range&&l<w;};
-  for(const o of cars)if(o!==c&&test(o.x,o.y,c.wid/2+12))return true;
-  for(const p of peds)if(!p.dead&&test(p.x,p.y,c.wid/2+8))return true;
-  if(P.car!==c&&!P.car&&!P.dead&&test(P.x,P.y,c.wid/2+8))return true;
-  return false;
-}
+// --- ИИ трафика: правая полоса, светофоры, дистанция, пропуск пешеходов (см. traffic.js) ---
 function aiTraffic(c){
   if(!GADJ)initGraph();
   const E=MAPDATA.G.e;let e=E[c.edge];
   if(!e){c.off=9999;return;}
   let lp=lanePt(e,c.ed,c.s);
   while(c.s<e.L&&Math.hypot(c.x-lp.x,c.y-lp.y)<34){c.s+=14;lp=lanePt(e,c.ed,c.s);}
-  if(c.s>=e.L-2){ // конец ребра: выбрать следующее на перекрёстке
-    const node=c.ed>0?e.b:e.a,opts=GADJ[node].filter(([i,d])=>!(i===c.edge&&d===-c.ed));
-    const ch=opts.length?pick(opts):[c.edge,-c.ed];
+  // следующее ребро выбирается заранее (нужно, чтобы уступить пешеходам на зебре выезда)
+  const nk=c.edge+','+c.ed;
+  if(c.nxk!==nk){const node=c.ed>0?e.b:e.a,opts=GADJ[node].filter(([i,d])=>!(i===c.edge&&d===-c.ed));c.nxt=opts.length?pick(opts):[c.edge,-c.ed];c.nxk=nk;}
+  if(c.s>=e.L-2){ // конец ребра: на перекрёстке едем по выбранному
+    const ch=c.nxt;
     c.edge=ch[0];c.ed=ch[1];c.s=0;e=E[c.edge];lp=lanePt(e,c.ed,18);
   }
   const tgt=lanePt(e,c.ed,Math.min(e.L,c.s+46));
   if(tileAt(Math.floor(c.x/TS),Math.floor(c.y/TS))!==0){c.off++;}else c.off=0;
   const want=Math.atan2(tgt.y-c.y,tgt.x-c.x),str=clamp(angDiff(c.a,want)*2,-1,1);
-  const blk=blockedAhead(c,95);
-  c.blocked=blk?c.blocked+1:0;
+  const vf=c.vx*Math.cos(c.a)+c.vy*Math.sin(c.a),maxV=c.t.max*.5;
+  let vd=maxV;
+  // дистанция до машины, пешехода или занятой зебры впереди
+  if(c.push>0)c.push--;
+  const g=leadGap(c,220,c.push>0);
+  if(g.d<1e8)vd=Math.min(vd,clamp(g.v+(g.d-8)*.085,0,maxV));
+  // красный и жёлтый (если успеваем остановиться) — остановка перед стоп-линией
+  const L=lightAhead(c,c.edge);
+  let atLight=false;
+  // на зебре выезда стоит пешеход: не въезжаем на перекрёсток, ждём у стоп-линии
+  if(L&&L.d>-8&&c.nxt&&c.nxk===c.edge+','+c.ed){
+    const zi=exitZebra(c.nxt);if(zi>=0&&RN.zebras[zi].occ>0){vd=Math.min(vd,clamp((L.d-6)*.085,0,maxV));atLight=L.d<60;}
+  }
+  // уже на перекрёстке: не выезжать на зебру, где стоит пешеход
+  if((!L||L.d<=-8)&&c.nxt&&c.nxk===c.edge+','+c.ed){
+    const zi=exitZebra(c.nxt);
+    if(zi>=0&&RN.zebras[zi].occ>0){ // путь до зебры считаем вдоль выезжающей дороги (z.rx,z.ry — от перекрёстка): так работает и при повороте
+      const z=RN.zebras[zi],sc=(c.x-z.x)*z.rx+(c.y-z.y)*z.ry,gap=-sc-z.wid/2-c.len/2;
+      if(gap>-6&&gap<260)vd=Math.min(vd,clamp((gap-6)*.085,0,maxV));
+    }
+  }
+  if(L&&L.d>-8&&L.c!=='g'){
+    const canStop=L.d>9*Math.max(vf,0)+8,reach=vf>.5&&L.d/vf<L.left;   // на жёлтом едем, только если успеваем до красного
+    if(L.c==='r'||(canStop&&!reach)){vd=Math.min(vd,clamp((L.d-6)*.085,0,maxV));atLight=L.d<60;}
+  }
+  // затор не на светофоре: через время подтолкнуть, игнорируя машины впереди
+  const gapBlock=g.d<14&&!atLight;
+  c.blocked=gapBlock&&vf<.3?c.blocked+1:0;
   if(c.blocked===150&&Math.random()<.5)snd('honk');
-  const vf=c.vx*Math.cos(c.a)+c.vy*Math.sin(c.a);
-  if(blk)c.drive(0,str,true,false);
-  else c.drive(vf<c.t.max*.5?1:0,str,false,false);
+  if(c.blocked>700){c.push=120;c.blocked=0;}
+  if(vf>vd+.1||(vd<.2&&vf>.1))c.drive(0,str,true,false);
+  else c.drive(vf<vd?clamp((vd-vf)/1.2,.2,1):0,str,false,false);
 }
 function aiCop(c){
   if(P.heat<1||P.dead){c.drive(0,0,true,false);return;}
@@ -191,28 +211,60 @@ function updateCar(c,tm){
   if(c.ai==='traffic'&&c.off>200)c.off=9999;
 }
 // --- Пешеходы ---
+const PED_KILL_SPD=2.8;      // скорость машины, при которой сбитый пешеход гибнет
+const PLAYER_HIT_SPD=1.8,PLAYER_KILL_SPD=6.3;
+function carHitPed(p){
+  for(const c of cars){
+    if(c.dead)continue;
+    const dx=p.x-c.x,dy=p.y-c.y;if(Math.abs(dx)>40||Math.abs(dy)>40)continue;
+    const cs=Math.cos(c.a),sn=Math.sin(c.a),lx=dx*cs+dy*sn,ly=-dx*sn+dy*cs;
+    if(Math.abs(lx)<c.len/2+3&&Math.abs(ly)<c.wid/2+3){
+      if(c.speed>=PED_KILL_SPD){killPed(p,c===P.car?'player':'ai');alertPeds(p.x,p.y,300);}
+      else{const side=ly>0?1:-1;p.x+=-sn*side*3;p.y+=cs*side*3;}  // тихий ход: просто оттолкнуть в сторону
+      return;
+    }
+  }
+}
+// игрок пешком: машины твёрдые, на скорости наезд бьёт или убивает
+function playerCarHit(){
+  if(P.car||P.dead||P.busted>0)return;
+  P.hitCd=(P.hitCd||0)-1;
+  for(const c of cars){
+    const dx=P.x-c.x,dy=P.y-c.y;if(Math.abs(dx)>46||Math.abs(dy)>46)continue;
+    const cs=Math.cos(c.a),sn=Math.sin(c.a),lx=dx*cs+dy*sn,ly=-dx*sn+dy*cs,hl=c.len/2+5,hw=c.wid/2+5;
+    if(Math.abs(lx)>=hl||Math.abs(ly)>=hw)continue;
+    const ox=hl-Math.abs(lx),oy=hw-Math.abs(ly);
+    if(ox<oy){const s=lx>0?1:-1;P.x+=cs*s*ox;P.y+=sn*s*ox;}else{const s=ly>0?1:-1;P.x+=-sn*s*oy;P.y+=cs*s*oy;}
+    const sp=c.speed;
+    if(!c.dead&&sp>=PLAYER_HIT_SPD&&P.hitCd<=0){
+      P.hitCd=40;
+      if(sp>=PLAYER_KILL_SPD){P.armor=0;P.hp=0;blood(P.x,P.y);snd('hit');}
+      else hurtPlayer((sp-1.2)*15);
+      P.x+=c.vx*2.5;P.y+=c.vy*2.5;
+    }
+  }
+}
 function updatePeds(){
+  for(const z of RN.zebras)z.occ=0;
+  // занятость зебры: пешеход (или игрок) стоит на проезжей части в её прямоугольнике; ждущие на тротуаре машин не задерживают
+  const onRoad=(x,y)=>tileAt(Math.floor(x/TS),Math.floor(y/TS))===0;
+  for(const p of peds)if(!p.dead&&onRoad(p.x,p.y)){const zi=zebraAt(p.x,p.y);if(zi>=0)RN.zebras[zi].occ++;}
+  if(!P.car&&!P.dead&&onRoad(P.x,P.y)){const zi=zebraAt(P.x,P.y);if(zi>=0)RN.zebras[zi].occ++;}
   for(const p of peds){
     if(p.dead)continue;
-    for(const c of cars){
-      if(c.dead||c.speed<1.4)continue;
-      const dx=p.x-c.x,dy=p.y-c.y;if(Math.abs(dx)>40||Math.abs(dy)>40)continue;
-      const cs=Math.cos(c.a),sn=Math.sin(c.a),lx=dx*cs+dy*sn,ly=-dx*sn+dy*cs;
-      if(Math.abs(lx)<c.len/2+3&&Math.abs(ly)<c.wid/2+3){killPed(p,c===P.car?'player':'ai');break;}
-    }
+    carHitPed(p);
     if(p.dead)continue;
-    const tgt=P.car||P;
     if(p.kind==='civ'){
       if(P.car&&p.flee<=0&&P.car.speed>3&&Math.hypot(p.x-P.car.x,p.y-P.car.y)<110){p.flee=120;p.a=Math.atan2(p.y-P.car.y,p.x-P.car.x)+rnd(-.6,.6);}
-      p.t--;if(p.t<=0&&p.flee<=0){p.a+=rnd(-1,1);p.t=ri(80,300);}
-    }else{
-      const r=copFootAI(p,tgt);p.moving=r.move>0;if(!r.move)continue;p.mv=r.move;
+      if(p.cow>0){p.cow--;p.moving=false;if(p.cow===0)p.flee=200;continue;}
+      civStep(p);
+      continue;
     }
-    const sp=p.kind==='cop'?1.6*(p.mv||1):p.flee>0?2.1:.7;
-    p.flee--;
-    const nx=p.x+Math.cos(p.a)*sp,ny=p.y+Math.sin(p.a)*sp,tt=tileAt(Math.floor(nx/TS),Math.floor(ny/TS));
-    const ok=(p.flee>0||p.kind==='cop')?tt!==2:(tt===1||tt===3);
-    if(ok){p.x=nx;p.y=ny;p.step+=sp*.35;}
+    // полицейский на ногах: идёт куда угодно, кроме твёрдых тайлов
+    const tgt=P.car||P,r=copFootAI(p,tgt);p.moving=r.move>0;if(!r.move)continue;p.mv=r.move;
+    const sp=1.6*(p.mv||1);
+    const nx=p.x+Math.cos(p.a)*sp,ny=p.y+Math.sin(p.a)*sp;
+    if(!isSol(tileAt(Math.floor(nx/TS),Math.floor(ny/TS)))){p.x=nx;p.y=ny;p.step+=sp*.35;}
     else p.a+=(Math.random()<.5?1:-1)*(Math.PI/2)+rnd(-.4,.4);
   }
 }
